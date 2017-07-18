@@ -20,6 +20,7 @@
 #include <platform/multiboot.h>
 #include <arch/x86.h>
 #include <arch/mmu.h>
+#include <arch/local_apic.h>
 #include <malloc.h>
 #include <string.h>
 #include <assert.h>
@@ -46,6 +47,8 @@ trusty_startup_info_t g_trusty_startup_info __ALIGNED(8);
 uint8_t g_dev_info_buf[PAGE_SIZE] __ALIGNED(8);
 trusty_device_info_t *g_dev_info = (trusty_device_info_t *)g_dev_info_buf;
 uintptr_t real_run_addr;
+
+volatile map_addr_t g_cr3 = 0;
 
 #ifdef WITH_KERNEL_VM
 struct mmu_initial_mapping mmu_initial_mappings[] = {
@@ -75,7 +78,7 @@ static void heap_arena_init(void)
 }
 #endif
 
-void platform_init_mmu_mappings(void)
+static void platform_update_pagetable(void)
 {
     struct map_range range;
     arch_flags_t access;
@@ -134,9 +137,13 @@ void platform_init_mmu_mappings(void)
     range.start_paddr = (uint64_t)vaddr_to_paddr((void *)PAGE_ALIGN(va));
     range.size = ((map_addr_t)(mmu_initial_mappings[0].phys + mmu_initial_mappings[0].size) - range.start_paddr);
     x86_mmu_map_range(pml4_table, &range, access | ARCH_MMU_FLAG_NS);
+}
 
+void platform_init_mmu_mappings(void)
+{
     /* Moving to the new CR3 */
-    x86_set_cr3(get_kernel_cr3());
+    g_cr3 = x86_get_cr3();
+    x86_set_cr3(g_cr3);
 }
 
 void clear_sensitive_data(void)
@@ -178,16 +185,25 @@ void platform_early_init(void)
     heap_arena_init();
     pmm_add_arena(&heap_arena);
 #endif
+
+#if PRINT_USE_MMIO
+    init_uart();
+#endif
+
+#if WITH_SMP
+    local_apic_init();
+#endif
 }
 
 void platform_init(void)
 {
     /* MMU init for x86 Archs done after the heap is setup */
    // arch_mmu_init_percpu();
-#if PRINT_USE_MMIO
-    init_uart();
-#endif
-
     platform_init_mmu_mappings();
     x86_mmu_init();
+
+#if WITH_SMP
+    x86_mp_init(g_trusty_startup_info.sipi_ap_wkup_addr);
+#endif
+    platform_update_pagetable();
 }

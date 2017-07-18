@@ -35,6 +35,9 @@ typedef struct _trusty_startup_info{
 
     /* Used by keymaster */
     uint64_t trusty_mem_base;
+
+    uint32_t sipi_ap_wkup_addr;
+    uint8_t  padding[4];
 }trusty_startup_info_t;
 
 extern trusty_startup_info_t g_trusty_startup_info;
@@ -82,4 +85,7 @@ void pci_write32(uint8_t bus,
 
 uint64_t pci_read_bar0(uint16_t pci_location);
 
+#if WITH_SMP
+void x86_mp_init(uint32_t ap_startup_addr);
+#endif
 #endif

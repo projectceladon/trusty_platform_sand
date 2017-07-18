@@ -18,7 +18,7 @@
 #include <stdlib.h>
 
 #define TRUSTY_VMCALL_SMC               0x74727500 /* "tru" is 0x747275 */
-#define TRUSTY_VMCALL_RESCHEDULE        0x74727501 /* "tru" is 0x747275 */
+
 #ifdef EPT_DEBUG
 #define VMCALL_EPT_UPDATE        0x65707501
 #endif
@@ -32,16 +32,6 @@ void make_smc_vmcall(smc32_args_t *args, long ret)
         :"a"(TRUSTY_VMCALL_SMC), "D"(ret), "S"(args->params[0]),
         "d"(args->params[1]), "b"(args->params[2])
     );
-}
-
-void make_vmcall(uint32_t vmcall_id)
-{
-    __asm__ __volatile__ ("vmcall"::"a"(vmcall_id));
-}
-
-void make_schedule_vmcall(void)
-{
-    make_vmcall(TRUSTY_VMCALL_RESCHEDULE);
 }
 
 #ifdef EPT_DEBUG

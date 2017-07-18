@@ -19,6 +19,7 @@
 #include <arch/arch_ops.h>
 #include <platform/vmcall.h>
 #include <trace.h>
+#include <arch/local_apic.h>
 
 #define LOCAL_TRACE 1
 
@@ -40,12 +41,21 @@ return_sm_err:
      * unmask all interruptes before LK switch back to NS world.
      */
     if (0 == is_lk_boot_complete) {
+#if WITH_SMP
+        /*
+         * Local APIC is disabled by default, if LK enabled Local APIC
+         * without disabled it, Linux kernel will detected this exception.
+         * Since Linux kernel believes Local APIC is disabled by default.
+         */
+        lapic_software_disable();
+#endif
         x86_set_cr8(0);
-        is_lk_boot_complete = 1;
+
+        if (0 == arch_curr_cpu_num())
+            is_lk_boot_complete = 1;
     }
 
     make_smc_vmcall(args, retval);
-    is_lk_boot_complete = 1;
 
     smc_nr = args->smc_nr;
     if (SMC_IS_SMC64(smc_nr)) {/* 64bits */

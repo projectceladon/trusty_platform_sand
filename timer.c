@@ -21,6 +21,7 @@
 #include <platform/sand.h>
 #include <kernel/vm.h>
 #include <arch/x86.h>
+#include <arch/arch_ops.h>
 
 #if WITH_SM_WALL
 #include <lib/sm.h>
@@ -91,13 +92,13 @@ static void update_bakcup_timer(uint64_t tv, uint64_t cv)
 }
 
 /* Timer will be started at Android side if tv bigger than cv */
-static void inline set_backup_timer(uint64_t interval)
+inline static void set_backup_timer(uint64_t interval)
 {
     update_bakcup_timer(0, interval);
 }
 
 /* Timer will be stopped at Android side if cv bigger than tv */
-static void inline stop_backup_timer(void)
+inline static void stop_backup_timer(void)
 {
     update_bakcup_timer(1, 0);
 }
@@ -148,6 +149,7 @@ static enum handler_return os_timer_tick(void *arg)
     timer_current_time += timer_delta_time;
 #endif
     lk_time_t time = current_time();
+
     return t_callback(callback_arg, time);
 }
 
@@ -177,14 +179,16 @@ static void update_wall_cb(struct sm_wall_item *wi, void *item)
     return;
 }
 
-static struct sm_wall_item timer_wall_item =
+static struct sm_wall_item timer_wall_item[SMP_MAX_CPUS] = {
+    [0 ... SMP_MAX_CPUS-1] =
     SM_WALL_ITEM_INITIALIZE(SM_WALL_PER_CPU_SEC_TIMER_ID, update_wall_cb,
-        sizeof(struct bakcup_timer_t));
+        sizeof(struct bakcup_timer_t)),
+};
 
 static void reg_timer_wall_item(uint lvl)
 {
-    sm_wall_register_per_cpu_item(&timer_wall_item);
+    sm_wall_register_per_cpu_item(&timer_wall_item[arch_curr_cpu_num()]);
 }
 
-LK_INIT_HOOK(timer, reg_timer_wall_item, LK_INIT_LEVEL_PLATFORM + 1);
+LK_INIT_HOOK_FLAGS(timer, reg_timer_wall_item, LK_INIT_LEVEL_PLATFORM + 1, LK_INIT_FLAG_ALL_CPUS);
 #endif

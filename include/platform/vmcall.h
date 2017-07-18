@@ -19,7 +19,6 @@
 #include <lib/sm.h>
 
 void make_smc_vmcall(smc32_args_t *args, long ret);
-void make_schedule_vmcall(void);
 
 #ifdef EPT_DEBUG
 typedef enum {

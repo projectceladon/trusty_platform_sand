@@ -13,18 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <arch/mp.h>
 #include <assert.h>
 #include <trace.h>
 #include <err.h>
-#include <platform/interrupts.h>
+#include <arch/mp.h>
 #include <arch/ops.h>
+#include <arch/local_apic.h>
+#include <kernel/mp.h>
+#include <platform/interrupts.h>
 #include <platform/sand.h>
 #include <platform/vmcall.h>
 
 status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi)
 {
-    make_schedule_vmcall();
+    if (MP_CPU_ALL_BUT_LOCAL == target) {
+        send_reschedule_ipi(MP_CPU_ALL_BUT_LOCAL);
+    } else {
+        uint32_t cpu_id = 0;
+
+        for(cpu_id = 0; cpu_id < SMP_MAX_CPUS; cpu_id++) {
+            if(BIT_GET(target, cpu_id))
+                send_reschedule_ipi(cpu_id);
+        }
+    }
 
     return NO_ERROR;
 }
@@ -42,5 +53,7 @@ enum handler_return x86_ipi_reschedule_handler(void *arg)
 
 void arch_mp_init_percpu(void)
 {
+    lapic_id_init();
+
     register_int_handler(INT_RESCH, &x86_ipi_reschedule_handler, NULL);
 }

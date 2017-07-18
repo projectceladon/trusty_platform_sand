@@ -21,6 +21,7 @@
 #include <platform/interrupts.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <arch/local_apic.h>
 #ifdef ENABLE_FPU
 #include <arch/fpu.h>
 #endif
@@ -53,7 +54,7 @@ void platform_init_interrupts(void)
     /*
      * Mask all interrputs before LK bootup
      */
-    x86_set_cr8(0xF);
+    //x86_set_cr8(0xF);
 }
 
 status_t mask_interrupt(unsigned int vector)
@@ -95,6 +96,7 @@ static inline void set_pending_intr_to_ns(unsigned int vector)
             ::"a"(TRUSTY_VMCALL_PENDING_INTR), "c"(vector)
             );
 }
+extern int32_t is_lk_boot_complete;
 
 enum handler_return platform_irq(x86_iframe_t *frame)
 {
@@ -123,6 +125,16 @@ enum handler_return platform_irq(x86_iframe_t *frame)
      * Please issue EOI in interrupt handler
      */
     //issueEOI(vector);
+
+#if WITH_SMP
+    /*
+     * There should be no INT_RESCH sent from LK at runtime.
+     * If INT_RESCH triggered at run time, it should be triggered
+     * by Android side, redirect it back to Androd.
+     * */
+    if ((0 == is_lk_boot_complete) && (INT_RESCH == vector))
+        lapic_eoi();
+#endif
 
     return ret;
 }
@@ -161,7 +173,7 @@ long smc_intc_get_next_irq(smc32_args_t *args)
 
     for (vector = args->params[0]; vector<INT_VECTORS; vector++)
     {
-        if (int_handler_table[vector].handler)
+        if (int_handler_table[vector].handler && (INT_RESCH != vector))
             return vector;
     }
     return -1;

@@ -4,10 +4,9 @@ MODULE := $(LOCAL_DIR)
 
 CPU := generic
 
-LK_CORE_NUM ?= 4
-SMP_MAX_CPUS := $(LK_CORE_NUM)
+SMP_MAX_CPUS ?= 1
 
-ifneq ($(LK_CORE_NUM),1)
+ifneq ($(SMP_MAX_CPUS),1)
 WITH_SMP := 1
 endif
 
@@ -46,7 +45,8 @@ MODULE_SRCS += \
 
 ifeq ($(WITH_SMP),1)
 MODULE_SRCS += \
-	$(LOCAL_DIR)/mp.c
+	$(LOCAL_DIR)/mp.c \
+	$(LOCAL_DIR)/mp_init.c
 endif
 
 
