@@ -190,7 +190,7 @@ void platform_early_init(void)
     init_uart();
 #endif
 
-#if WITH_SMP
+#if defined(WITH_SMP) || defined(ISSUE_EOI)
     local_apic_init();
 #endif
 }

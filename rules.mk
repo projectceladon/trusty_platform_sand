@@ -49,6 +49,13 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/mp_init.c
 endif
 
+# Send EOI by default, this needs eVmm support, please consult owner of eVmm.
+ISSUE_EOI ?= 1
+
+ifeq ($(ISSUE_EOI), 1)
+GLOBAL_DEFINES += \
+	ISSUE_EOI=1
+endif
 
 
 EXTRA_LINKER_SCRIPTS += \

@@ -45,10 +45,6 @@ struct int_handler_struct {
 
 static struct int_handler_struct int_handler_table[INT_VECTORS];
 
-void issueEOI(unsigned int vector)
-{
-}
-
 void platform_init_interrupts(void)
 {
     /*
@@ -120,13 +116,14 @@ enum handler_return platform_irq(x86_iframe_t *frame)
         ret = sm_handle_irq();
     }
 
+#if ISSUE_EOI
     /*
      * Ack the interrupt
      * Please issue EOI in interrupt handler
      */
-    //issueEOI(vector);
+    lapic_eoi();
 
-#if WITH_SMP
+#elif WITH_SMP
     /*
      * There should be no INT_RESCH sent from LK at runtime.
      * If INT_RESCH triggered at run time, it should be triggered
