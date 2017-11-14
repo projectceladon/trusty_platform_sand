@@ -113,18 +113,23 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
     callback_arg = arg;
     timer_delta_time = interval;
 
+#ifdef WITH_SM_WALL
     if(is_lk_boot_complete) {
         set_backup_timer(interval);
     }
+#endif
 
     return NO_ERROR;
 }
 
 void platform_stop_timer(void)
 {
+#ifdef WITH_SM_WALL
     if(is_lk_boot_complete) {
         stop_backup_timer();
     }
+#endif
+
     return;
 }
 
