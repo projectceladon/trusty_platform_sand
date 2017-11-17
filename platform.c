@@ -199,6 +199,9 @@ void platform_init(void)
 {
     /* MMU init for x86 Archs done after the heap is setup */
    // arch_mmu_init_percpu();
+
+    cse_init();
+
     platform_init_mmu_mappings();
     x86_mmu_init();
 

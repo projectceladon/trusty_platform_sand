@@ -88,4 +88,7 @@ uint64_t pci_read_bar0(uint16_t pci_location);
 #if WITH_SMP
 void x86_mp_init(uint32_t ap_startup_addr);
 #endif
+
+void cse_init(void);
+int get_attkb(uint8_t *attkb, uint32_t *attkb_size);
 #endif
