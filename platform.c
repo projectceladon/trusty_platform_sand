@@ -188,6 +188,8 @@ void platform_init(void)
     init_uart();
 #endif
 
+    cse_init();
+
     platform_init_mmu_mappings();
     x86_mmu_init();
 }
