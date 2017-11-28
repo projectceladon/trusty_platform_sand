@@ -75,6 +75,7 @@ status_t unmask_interrupt(unsigned int vector)
 
 extern enum handler_return sm_handle_irq(void);
 
+#if !ISSUE_EOI
 #define TRUSTY_VMCALL_PENDING_INTR 0x74727505 /* "tru" is 0x747275 */
 
 static inline void set_pending_intr_to_ns(unsigned int vector)
@@ -92,6 +93,8 @@ static inline void set_pending_intr_to_ns(unsigned int vector)
             ::"a"(TRUSTY_VMCALL_PENDING_INTR), "c"(vector)
             );
 }
+#endif
+
 extern int32_t is_lk_boot_complete;
 
 enum handler_return platform_irq(x86_iframe_t *frame)
@@ -108,7 +111,11 @@ enum handler_return platform_irq(x86_iframe_t *frame)
         ret = int_handler_table[vector].
         handler(int_handler_table[vector].arg);
     } else {
+#if ISSUE_EOI
+        send_self_ipi(vector);
+#else
         set_pending_intr_to_ns(vector);
+#endif
         /*
          * CAUTION: smc to non-secure world, and will not
          * return unless Android call smc to secure world
