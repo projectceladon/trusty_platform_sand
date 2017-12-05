@@ -50,21 +50,6 @@ static uint64_t timer_delta_time; /* in ms */
 static platform_timer_callback t_callback;
 static void *callback_arg;
 
-#define TRUSTY_VMCALL_TIMER 0x74727503 /* "tru" is 0x747275 */
-typedef enum {
-    TIMER_MODE_PERIOD,
-    TIMER_MODE_ONESHOT,
-    TIMER_MODE_STOPPED,
-} vmx_timer_mode_t;
-
-static inline void make_timer_vmcall(vmx_timer_mode_t mode, uint64_t interval_in_ms)
-{
-    __asm__ __volatile__(
-            "vmcall"
-            ::"a"(TRUSTY_VMCALL_TIMER), "b"(mode), "c"(interval_in_ms)
-            );
-}
-
 lk_time_t current_time(void)
 {
     uint64_t val;
