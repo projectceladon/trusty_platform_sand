@@ -28,6 +28,7 @@
  */
 
 #include <platform/sand.h>
+#include <platform/vmcall.h>
 #include <lib/trusty/trusty_device_info.h>
 #include <kernel/vm.h>
 #include <debug.h>
@@ -184,6 +185,10 @@ static uint64_t heci_get_base_addr(void)
         dprintf(0, "%s: failed %d\n", __func__, status);
         return 0;
     }
+#ifdef EPT_DEBUG
+    if (!status)
+        make_ept_update_vmcall(ADD, u32HeciBase, 4096);
+#endif
 
     return HeciMBAR_va;
 }
@@ -442,6 +447,11 @@ void cse_init(void)
         dprintf(CRITICAL, "%s: failed %d\n", __func__, ret);
         return;
     }
+#ifdef EPT_DEBUG
+    if (!ret)
+        make_ept_update_vmcall(ADD,
+        (uint64_t)PCI_BDF(HECI_BUS, HECI_DEVICE_NUMBER, HECI_FUNCTION_NUMBER), 4096);
+#endif
 
     ret = vmm_alloc_physical(vmm_get_kernel_aspace(), "clock", 4096,
         (void **)&hpet_mmio_base_va, PAGE_SIZE_SHIFT, HPET_BASE_ADDRESS, 0,
@@ -450,6 +460,10 @@ void cse_init(void)
         dprintf(CRITICAL, "%s: failed %d\n", __func__, ret);
         return;
     }
+#ifdef EPT_DEBUG
+    if (!ret)
+        make_ept_update_vmcall(ADD, HPET_BASE_ADDRESS, 4096);
+#endif
 
     return;
 }
