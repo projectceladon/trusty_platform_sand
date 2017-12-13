@@ -44,8 +44,8 @@ extern void init_uart(void);
 #endif
 
 trusty_startup_info_t g_trusty_startup_info __ALIGNED(8);
-uint8_t g_dev_info_buf[PAGE_SIZE] __ALIGNED(8);
-trusty_device_info_t *g_dev_info = (trusty_device_info_t *)g_dev_info_buf;
+uint8_t g_sec_info_buf[PAGE_SIZE] __ALIGNED(8);
+device_sec_info_t *g_sec_info = (device_sec_info_t *)g_sec_info_buf;
 uintptr_t real_run_addr;
 
 volatile map_addr_t g_cr3 = 0;
@@ -149,8 +149,8 @@ void platform_init_mmu_mappings(void)
 void clear_sensitive_data(void)
 {
     if(g_trusty_startup_info.size_of_this_struct > 0) {
-        if(g_dev_info->size > 0)
-            memset(g_dev_info, 0, g_dev_info->size);
+        if(g_sec_info->size_of_this_struct > 0)
+            memset(g_sec_info, 0, g_sec_info->size_of_this_struct);
 
         /* clear the g_trusty_startup_info */
         memset(&g_trusty_startup_info, 0, sizeof(trusty_startup_info_t));

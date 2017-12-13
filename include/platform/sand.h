@@ -41,7 +41,7 @@ typedef struct _trusty_startup_info{
 }trusty_startup_info_t;
 
 extern trusty_startup_info_t g_trusty_startup_info;
-extern trusty_device_info_t* g_dev_info;
+extern device_sec_info_t* g_sec_info;
 
 extern int32_t is_lk_boot_complete;
 

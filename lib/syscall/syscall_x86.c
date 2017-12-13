@@ -39,7 +39,8 @@ static bool ta_permission_check(uint32_t flags)
 {
 	ta_permission_t ta_permission_matrix[] = {
 		{HWCRYPTO_SRV_APP_UUID, GET_SEED},
-		{KEYMASTER_SRV_APP_UUID, GET_ATTKB}
+		{KEYMASTER_SRV_APP_UUID, GET_ATTKB},
+		{SECURE_STORAGE_SERVER_APP_UUID, GET_RPMB_KEY}
 		};
 	uint i;
 
@@ -77,8 +78,8 @@ long sys_get_device_info(user_addr_t info, uint32_t flags)
 		panic("trusty_startup_info_t size mismatch!\n");
 
 	/* make sure the shared structure are same in tos loader, LK kernel */
-	if(g_dev_info->size != ATTKB_INFO_OFFSET)
-		panic("trusty_device_info_t size mismatch!\n");
+	if(g_sec_info->size_of_this_struct != sizeof(device_sec_info_t))
+		panic("device_sec_info_t size mismatch!\n");
 
 	if(flags & GET_ATTKB) {
 		copy_to_user_size += MAX_ATTKB_SIZE;
@@ -91,23 +92,22 @@ long sys_get_device_info(user_addr_t info, uint32_t flags)
 	}
 
 	/* memcpy may result to klocwork scan error, so size is checked before memcpy is called. */
-	memcpy_s(dev_info, ATTKB_INFO_OFFSET, g_dev_info, g_dev_info->size);
-
-	dev_info->size = copy_to_user_size;
-
-	/* for KM 1.0 no need the osVersion and patchMonthYear */
-	dev_info->rot.osVersion = 0;
-	dev_info->rot.patchMonthYear = 0;
-
-#if TARGET_PRODUCE_BXT
-	dev_info->state.data = PCI_READ_FUSE(HECI1);
-#else
-	dev_info->state.data = 0;
-#endif
+	ret = memcpy_s(dev_info, sizeof(device_sec_info_t), g_sec_info, g_sec_info->size_of_this_struct);
+	if (ret != NO_ERROR){
+		dprintf(INFO, "failed to memcopy dev_info!\n");
+		free(dev_info);
+		return ERR_GENERIC;
+	}
 
 	/* seed is the sensitive secret date, do not return to user app if it is not required. */
-	if (!(flags & GET_SEED))
-		memset(dev_info->seed_list, 0, sizeof(dev_info->seed_list));
+	if (!(flags & GET_SEED)) {
+		memset(dev_info->sec_info.dseed_list, 0, sizeof(dev_info->sec_info.dseed_list));
+		memset(dev_info->sec_info.useed_list, 0, sizeof(dev_info->sec_info.useed_list));
+	}
+
+	if (!(flags & GET_RPMB_KEY)) {
+		memset(dev_info->sec_info.rpmb_key, 0, sizeof(dev_info->sec_info.rpmb_key));
+	}
 
 	if(flags & GET_ATTKB) {
 		attkb = (uint8_t *)malloc(MAX_ATTKB_SIZE + PAGE_SIZE);
@@ -125,8 +125,8 @@ long sys_get_device_info(user_addr_t info, uint32_t flags)
 			dev_info->attkb_size = attkb_size;
 			memcpy_s(dev_info->attkb, dev_info->attkb_size, attkb_page_aligned, attkb_size);
 			memset(attkb, 0, (MAX_ATTKB_SIZE + PAGE_SIZE));
-			free(attkb);
 		}
+		free(attkb);
 	}
 
 	ret = copy_to_user(info, dev_info, copy_to_user_size);
