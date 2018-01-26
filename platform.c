@@ -18,6 +18,7 @@
 #include <platform.h>
 #include <platform/sand.h>
 #include <platform/multiboot.h>
+#include <platform/vmcall.h>
 #include <arch/x86.h>
 #include <arch/mmu.h>
 #include <arch/local_apic.h>
@@ -49,6 +50,39 @@ device_sec_info_t *g_sec_info = (device_sec_info_t *)g_sec_info_buf;
 uintptr_t real_run_addr;
 
 volatile map_addr_t g_cr3 = 0;
+
+enum {
+    VMM_ID_EVMM = 0,
+    VMM_ID_CWP,
+    VMM_SUPPORTED_NUM
+} vmm_id_t;
+
+static const char *vmm_signature[] = {
+    [VMM_ID_EVMM] = "EVMMEVMMEVMM",
+    [VMM_ID_CWP]  = "CWPCWPCWP\0\0"
+};
+
+static inline int detect_vmm(void)
+{
+    uint32_t signature[3];
+    int i;
+
+    __asm__ __volatile__ (
+        "xchgl %%ebx, %0  \n\t"  // save ebx
+        "cpuid            \n\t"
+        "xchgl %%ebx, %0  \n\t"  // restore ebx
+        : "=r" (signature[0]),
+          "=c" (signature[1]),
+          "=d" (signature[2])
+        : "a" (0x40000000)
+        : "cc");
+
+    for (i=0; i<VMM_SUPPORTED_NUM; i++) {
+        if (!memcmp(vmm_signature[i], signature, 12))
+            return i;
+    }
+    return -1;
+}
 
 #ifdef WITH_KERNEL_VM
 struct mmu_initial_mapping mmu_initial_mappings[] = {
@@ -157,6 +191,23 @@ void clear_sensitive_data(void)
     }
 }
 
+void smc_init(void)
+{
+    int vmm_id;
+
+    vmm_id = detect_vmm();
+    if (vmm_id == VMM_ID_EVMM) {
+        make_smc_vmcall = make_smc_vmcall_evmm;
+    } else if (vmm_id == VMM_ID_CWP) {
+        make_smc_vmcall = make_smc_vmcall_cwp;
+    } else {
+        dprintf(CRITICAL, "Trusty is not yet supported on Current VMM!\n");
+        ASSERT(0);
+    }
+
+    dprintf(INFO, "Detected VMM: signature=%s\n", vmm_signature[vmm_id]);
+}
+
 /*
 * TODO: need to enhance the panic handler
 * currently, if we got panic in boot stage, the behavior
@@ -199,6 +250,8 @@ void platform_init(void)
 {
     /* MMU init for x86 Archs done after the heap is setup */
    // arch_mmu_init_percpu();
+
+    smc_init();
 
     cse_init();
 

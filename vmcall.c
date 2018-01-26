@@ -15,23 +15,41 @@
  *******************************************************************************/
 #include <platform/sand.h>
 #include <platform/vmcall.h>
-#include <stdlib.h>
 
-#define TRUSTY_VMCALL_SMC               0x74727500 /* "tru" is 0x747275 */
+#define EVMM_SMC_HC_ID                  0x74727500
+#define CWP_SMC_HC_ID                   0x80000071
 
 #ifdef EPT_DEBUG
-#define VMCALL_EPT_UPDATE        0x65707501
+#define EVMM_EPT_UPDATE_HC_ID           0x65707501
 #endif
 
-void make_smc_vmcall(smc32_args_t *args, long ret)
+#define asm_smc(smc_id, args, ret) \
+do { \
+    __asm__ __volatile__( \
+        "vmcall;" \
+        :"=D"(args->smc_nr), "=S"(args->params[0]), \
+        "=d"(args->params[1]), "=b"(args->params[2]) \
+        :"r"(smc_id), "D"(ret), "S"(args->params[0]), \
+        "d"(args->params[1]), "b"(args->params[2]) \
+    ); \
+} while (0)
+
+/* The SMC was called before smc_init() on Simics, then LK will crash.
+ * Workaround: initialize make_smc_vmcall with make_smc_vmcall_evmm(). */
+void (*make_smc_vmcall)(smc32_args_t *args, long ret) = make_smc_vmcall_evmm;
+
+void make_smc_vmcall_evmm(smc32_args_t *args, long ret)
 {
-    __asm__ __volatile__(
-        "vmcall;"
-        :"=D"(args->smc_nr), "=S"(args->params[0]),
-        "=d"(args->params[1]), "=b"(args->params[2])
-        :"a"(TRUSTY_VMCALL_SMC), "D"(ret), "S"(args->params[0]),
-        "d"(args->params[1]), "b"(args->params[2])
-    );
+    register unsigned long smc_id asm("rax") = EVMM_SMC_HC_ID;
+
+    asm_smc(smc_id, args, ret);
+}
+
+void make_smc_vmcall_cwp(smc32_args_t *args, long ret)
+{
+    register unsigned long smc_id asm("r8") = CWP_SMC_HC_ID;
+
+    asm_smc(smc_id, args, ret);
 }
 
 #ifdef EPT_DEBUG
@@ -49,7 +67,7 @@ void make_ept_update_vmcall(ept_update_t action, uint64_t start, uint64_t size)
     __asm__ __volatile__(
         "vmcall;"
         :
-        :"a"(VMCALL_EPT_UPDATE), "D"(start), "S"(size),
+        :"a"(EVMM_EPT_UPDATE_HC_ID), "D"(start), "S"(size),
         "d"(action), "c"(flush_all_cpus)
     );
 }
