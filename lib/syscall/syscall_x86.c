@@ -30,12 +30,17 @@
 #include <platform/sand.h>
 #include <lib/trusty/trusty_device_info.h>
 
+#define GET_NONE           0
+#define GET_SEED           (1<<0)
+#define GET_ATTKB          (1<<1)
+#define GET_RPMB_KEY       (1<<2)
+
 typedef struct ta_permission {
 	uuid_t uuid;
 	uint32_t permission;
 } ta_permission_t;
 
-static bool ta_permission_check(uint32_t flags)
+static uint32_t get_ta_permission()
 {
 	ta_permission_t ta_permission_matrix[] = {
 		{HWCRYPTO_SRV_APP_UUID, GET_SEED},
@@ -46,47 +51,49 @@ static bool ta_permission_check(uint32_t flags)
 
 	trusty_app_t *trusty_app = uthread_get_current()->private_data;
 	for (i = 0; i < sizeof(ta_permission_matrix)/sizeof(ta_permission_matrix[0]); i++) {
-		/* check uuid and flags matches the permission matrix */
+		/* check uuid from the permission matrix */
 		if (!memcmp(&trusty_app->props.uuid, &ta_permission_matrix[i].uuid, sizeof(uuid_t))) {
-			if((flags & ta_permission_matrix[i].permission) == flags) {
-				return true;
-			} else {
-				return false;
-			}
+			return ta_permission_matrix[i].permission;
 		}
 	}
-	return false;
+
+	dprintf(CRITICAL, "warning: trusty app uuid mismatch permission matrix!\n");
+	dprintf(CRITICAL, "trusty app uuid.time_low:0x%x, uuid.time_mid:0x%x,       \
+		uuid.time_hi_and_version:0x%x, uuid.clock_seq_and_node:0x%016llx.\n",
+		trusty_app->props.uuid.time_low, trusty_app->props.uuid.time_mid,
+		trusty_app->props.uuid.time_hi_and_version, *((uint64_t *)&trusty_app->props.uuid.clock_seq_and_node));
+
+	return GET_NONE;
 }
 
 /*
  * Based on the design the IMR region for LK will reserved some bytes for ROT
  * and seed storage (size = sizeof(seed_response_t)+sizeof(rot_data_t))
  */
-long sys_get_device_info(user_addr_t info, uint32_t flags)
+long sys_get_device_info(user_addr_t info)
 {
 	long ret = 0;
 	trusty_device_info_t *dev_info = NULL;
 	uint32_t copy_to_user_size = sizeof(trusty_device_info_t);
 	uint8_t *attkb = NULL, *attkb_page_aligned = NULL;
 	uint32_t attkb_size = 0;
+	uint32_t ta_permission;
 
-	if (flags && (!ta_permission_check(flags))) {
+	/* make sure the shared structure are same in tos loader, LK kernel */
+	if (g_sec_info->size_of_this_struct != sizeof(device_sec_info_t))
+		panic("device_sec_info_t size mismatch!\n");
+
+	ta_permission = get_ta_permission();
+	if (ta_permission == GET_NONE) {
 		return ERR_NOT_ALLOWED;
 	}
 
-	if(g_trusty_startup_info.size_of_this_struct != sizeof(trusty_startup_info_t))
-		panic("trusty_startup_info_t size mismatch!\n");
-
-	/* make sure the shared structure are same in tos loader, LK kernel */
-	if(g_sec_info->size_of_this_struct != sizeof(device_sec_info_t))
-		panic("device_sec_info_t size mismatch!\n");
-
-	if(flags & GET_ATTKB) {
+	if (ta_permission & GET_ATTKB) {
 		copy_to_user_size += MAX_ATTKB_SIZE;
 	}
-	dev_info = (trusty_device_info_t *)malloc(copy_to_user_size);
 
-	if(!dev_info) {
+	dev_info = (trusty_device_info_t *)malloc(copy_to_user_size);
+	if (!dev_info) {
 		dprintf(INFO, "failed to malloc dev_info!\n");
 		return ERR_NO_MEMORY;
 	}
@@ -100,16 +107,16 @@ long sys_get_device_info(user_addr_t info, uint32_t flags)
 	}
 
 	/* seed is the sensitive secret date, do not return to user app if it is not required. */
-	if (!(flags & GET_SEED)) {
+	if (!(ta_permission & GET_SEED)) {
 		memset(dev_info->sec_info.dseed_list, 0, sizeof(dev_info->sec_info.dseed_list));
 		memset(dev_info->sec_info.useed_list, 0, sizeof(dev_info->sec_info.useed_list));
 	}
 
-	if (!(flags & GET_RPMB_KEY)) {
+	if (!(ta_permission & GET_RPMB_KEY)) {
 		memset(dev_info->sec_info.rpmb_key, 0, sizeof(dev_info->sec_info.rpmb_key));
 	}
 
-	if(flags & GET_ATTKB) {
+	if (ta_permission & GET_ATTKB) {
 		attkb = (uint8_t *)malloc(MAX_ATTKB_SIZE + PAGE_SIZE);
 		if(!attkb) {
 			memset(dev_info, 0, copy_to_user_size);
