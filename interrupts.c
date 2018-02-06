@@ -50,7 +50,7 @@ void platform_init_interrupts(void)
     /*
      * Mask all interrputs before LK bootup
      */
-    //x86_set_cr8(0xF);
+    x86_set_cr8(0xF);
 }
 
 status_t mask_interrupt(unsigned int vector)
@@ -75,26 +75,6 @@ status_t unmask_interrupt(unsigned int vector)
 
 extern enum handler_return sm_handle_irq(void);
 
-#if !ISSUE_EOI
-#define TRUSTY_VMCALL_PENDING_INTR 0x74727505 /* "tru" is 0x747275 */
-
-static inline void set_pending_intr_to_ns(unsigned int vector)
-{
-    if (vector > INT_VECTORS) {
-        dprintf(CRITICAL, "error: internal failure in LK\n");
-        return;
-    }
-
-    __asm__ __volatile__(
-            "pushq %%rbx \n\t"
-            "mov %%rcx, %%rbx \n\t"
-            "vmcall \n\t"
-            "popq %%rbx \n\t"
-            ::"a"(TRUSTY_VMCALL_PENDING_INTR), "c"(vector)
-            );
-}
-#endif
-
 extern int32_t is_lk_boot_complete;
 
 enum handler_return platform_irq(x86_iframe_t *frame)
@@ -113,8 +93,6 @@ enum handler_return platform_irq(x86_iframe_t *frame)
     } else {
 #if ISSUE_EOI
         send_self_ipi(vector);
-#else
-        set_pending_intr_to_ns(vector);
 #endif
         /*
          * CAUTION: smc to non-secure world, and will not
