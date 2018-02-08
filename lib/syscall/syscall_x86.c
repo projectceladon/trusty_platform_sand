@@ -67,6 +67,33 @@ static uint32_t get_ta_permission(void)
 	return GET_NONE;
 }
 
+uint32_t copy_attkb_to_user(user_addr_t user_attkb)
+{
+	uint8_t *attkb = NULL;
+	uint32_t attkb_size = 0;
+	long ret = 0;
+
+	attkb = memalign(PAGE_SIZE, MAX_ATTKB_SIZE);
+	if (!attkb) {
+		dprintf(CRITICAL, "failed to malloc attkb!\n");
+		return 0;
+	}
+
+	attkb_size = get_attkb(attkb);
+	if (!attkb_size) {
+		free(attkb);
+		return 0;
+	}
+
+	ret = copy_to_user(user_attkb, attkb, attkb_size);
+	memset(attkb, 0, attkb_size);
+
+	if (ret != NO_ERROR)
+		panic("failed (%ld) to copy structure to user\n", ret);
+
+	free(attkb);
+	return attkb_size;
+}
 /*
  * Based on the design the IMR region for LK will reserved some bytes for ROT
  * and seed storage (size = sizeof(seed_response_t)+sizeof(rot_data_t))
@@ -75,9 +102,6 @@ long sys_get_device_info(user_addr_t info)
 {
 	long ret = 0;
 	trusty_device_info_t *dev_info = NULL;
-	uint32_t copy_to_user_size = sizeof(trusty_device_info_t);
-	uint8_t *attkb = NULL, *attkb_page_aligned = NULL;
-	uint32_t attkb_size = 0;
 	uint32_t ta_permission;
 
 	/* make sure the shared structure are same in tos loader, LK kernel */
@@ -89,11 +113,7 @@ long sys_get_device_info(user_addr_t info)
 		return ERR_NOT_ALLOWED;
 	}
 
-	if (ta_permission & GET_ATTKB) {
-		copy_to_user_size += MAX_ATTKB_SIZE;
-	}
-
-	dev_info = (trusty_device_info_t *)malloc(copy_to_user_size);
+	dev_info = (trusty_device_info_t *)malloc(sizeof(trusty_device_info_t));
 	if (!dev_info) {
 		dprintf(INFO, "failed to malloc dev_info!\n");
 		return ERR_NO_MEMORY;
@@ -118,27 +138,11 @@ long sys_get_device_info(user_addr_t info)
 	}
 
 	if (ta_permission & GET_ATTKB) {
-		attkb = (uint8_t *)malloc(MAX_ATTKB_SIZE + PAGE_SIZE);
-		if(!attkb) {
-			memset(dev_info, 0, copy_to_user_size);
-			free(dev_info);
-			return ERR_NO_MEMORY;
-		}
-		memset(attkb, 0, (MAX_ATTKB_SIZE + PAGE_SIZE));
-		attkb_page_aligned = (uint8_t *)PAGE_ALIGN((uint64_t)attkb);
-		ret = get_attkb(attkb_page_aligned, &attkb_size);
-		if((ret != 0) || (attkb_size == 0)) {
-			dprintf(CRITICAL, "failed to retrieve attkb\n");
-		} else {
-			dev_info->attkb_size = attkb_size;
-			memcpy_s(dev_info->attkb, dev_info->attkb_size, attkb_page_aligned, attkb_size);
-			memset(attkb, 0, (MAX_ATTKB_SIZE + PAGE_SIZE));
-		}
-		free(attkb);
+		dev_info->attkb_size = copy_attkb_to_user(info + sizeof(trusty_device_info_t));
 	}
 
-	ret = copy_to_user(info, dev_info, copy_to_user_size);
-	memset(dev_info, 0, copy_to_user_size);
+	ret = copy_to_user(info, dev_info, sizeof(trusty_device_info_t));
+	memset(dev_info, 0, sizeof(trusty_device_info_t));
 
 	if (ret != NO_ERROR)
 		panic("failed (%ld) to copy structure to user\n", ret);

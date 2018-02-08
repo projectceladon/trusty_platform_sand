@@ -395,7 +395,8 @@ static int HeciSendwACK(
     return status;
 }
 
-int get_attkb(uint8_t *attkb, uint32_t *attkb_size)
+/* if get failure, return zero */
+uint32_t get_attkb(uint8_t *attkb)
 {
     int status = 0;
     uint32_t HeciSendLength;
@@ -425,14 +426,17 @@ int get_attkb(uint8_t *attkb, uint32_t *attkb_size)
                  BIOS_FIXED_HOST_ADDR,
                  BIOS_SEC_ADDR);
     Resp = (MCA_BOOTLOADER_READ_ATTKB_RESP_DATA*)DataBuffer;
-    *attkb_size = Resp->ReadSize;
+    if((status < 0) || (Resp->Header.Fields.Result != 0)) {
+        dprintf(INFO, "failed to get attkb: status %d, respone %d\n", status, Resp->Header.Fields.Result);
+        return 0;
+    }
     DEBUG ("Group    = %08x\n", Resp->Header.Fields.GroupId);
     DEBUG ("Command  = %08x\n", Resp->Header.Fields.Command);
     DEBUG ("IsRespone= %08x\n", Resp->Header.Fields.IsResponse);
     DEBUG ("Result   = %08x\n", Resp->Header.Fields.Result);
     DEBUG ("ReadSize = %08x\n", Resp->ReadSize);
 
-    return status;
+    return Resp->ReadSize;
 }
 
 void cse_init(void)
