@@ -40,7 +40,7 @@ typedef struct ta_permission {
 	uint32_t permission;
 } ta_permission_t;
 
-static uint32_t get_ta_permission()
+static uint32_t get_ta_permission(void)
 {
 	ta_permission_t ta_permission_matrix[] = {
 		{HWCRYPTO_SRV_APP_UUID, GET_SEED},
@@ -57,11 +57,12 @@ static uint32_t get_ta_permission()
 		}
 	}
 
+	uint64_t *seq_and_node = (uint64_t *)&trusty_app->props.uuid.clock_seq_and_node;
 	dprintf(CRITICAL, "warning: trusty app uuid mismatch permission matrix!\n");
-	dprintf(CRITICAL, "trusty app uuid.time_low:0x%x, uuid.time_mid:0x%x,       \
+	dprintf(CRITICAL, "trusty app uuid.time_low:0x%x, uuid.time_mid:0x%x, \
 		uuid.time_hi_and_version:0x%x, uuid.clock_seq_and_node:0x%016llx.\n",
 		trusty_app->props.uuid.time_low, trusty_app->props.uuid.time_mid,
-		trusty_app->props.uuid.time_hi_and_version, *((uint64_t *)&trusty_app->props.uuid.clock_seq_and_node));
+		trusty_app->props.uuid.time_hi_and_version, *seq_and_node);
 
 	return GET_NONE;
 }
