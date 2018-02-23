@@ -158,7 +158,7 @@ void init_uart(void)
     struct map_range range;
     map_addr_t pml4_table = (map_addr_t)paddr_to_kvaddr(get_kernel_cr3());
 
-    io_base = (uint64_t)(pci_read32(0, 24, 2, 0x10) & ~0xF);
+    io_base = (uint64_t)(pci_read32(SERIAL_PCI_BUS, SERIAL_PCI_DEV, SERIAL_PCI_FUN, 0x10) & ~0xF);
 
     range.start_vaddr = (map_addr_t)(0xFFFFFFFF00000000ULL + (uint64_t)io_base);
     range.start_paddr = (map_addr_t)io_base;
