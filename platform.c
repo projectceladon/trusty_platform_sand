@@ -53,13 +53,13 @@ volatile map_addr_t g_cr3 = 0;
 
 enum {
     VMM_ID_EVMM = 0,
-    VMM_ID_CWP,
+    VMM_ID_ACRN,
     VMM_SUPPORTED_NUM
 } vmm_id_t;
 
 static const char *vmm_signature[] = {
     [VMM_ID_EVMM] = "EVMMEVMMEVMM",
-    [VMM_ID_CWP]  = "CWPCWPCWP\0\0"
+    [VMM_ID_ACRN] = "ACRNACRNACRN"
 };
 
 static inline int detect_vmm(void)
@@ -198,8 +198,8 @@ void smc_init(void)
     vmm_id = detect_vmm();
     if (vmm_id == VMM_ID_EVMM) {
         make_smc_vmcall = make_smc_vmcall_evmm;
-    } else if (vmm_id == VMM_ID_CWP) {
-        make_smc_vmcall = make_smc_vmcall_cwp;
+    } else if (vmm_id == VMM_ID_ACRN) {
+        make_smc_vmcall = make_smc_vmcall_acrn;
     } else {
         dprintf(CRITICAL, "Trusty is not yet supported on Current VMM!\n");
         ASSERT(0);

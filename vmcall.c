@@ -17,7 +17,7 @@
 #include <platform/vmcall.h>
 
 #define EVMM_SMC_HC_ID                  0x74727500
-#define CWP_SMC_HC_ID                   0x80000071
+#define ACRN_SMC_HC_ID                  0x80000071
 
 #ifdef EPT_DEBUG
 #define EVMM_EPT_UPDATE_HC_ID           0x65707501
@@ -45,9 +45,9 @@ void make_smc_vmcall_evmm(smc32_args_t *args, long ret)
     asm_smc(smc_id, args, ret);
 }
 
-void make_smc_vmcall_cwp(smc32_args_t *args, long ret)
+void make_smc_vmcall_acrn(smc32_args_t *args, long ret)
 {
-    register unsigned long smc_id asm("r8") = CWP_SMC_HC_ID;
+    register unsigned long smc_id asm("r8") = ACRN_SMC_HC_ID;
 
     asm_smc(smc_id, args, ret);
 }

@@ -19,7 +19,7 @@
 #include <lib/sm.h>
 
 void make_smc_vmcall_evmm(smc32_args_t *args, long ret);
-void make_smc_vmcall_cwp(smc32_args_t *args, long ret);
+void make_smc_vmcall_acrn(smc32_args_t *args, long ret);
 extern void (*make_smc_vmcall)(smc32_args_t *, long);
 
 #ifdef EPT_DEBUG
