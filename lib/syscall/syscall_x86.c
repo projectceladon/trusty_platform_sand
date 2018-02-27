@@ -31,9 +31,10 @@
 #include "trusty_device_info.h"
 
 #define GET_NONE           0
-#define GET_SEED           (1<<0)
-#define GET_ATTKB          (1<<1)
-#define GET_RPMB_KEY       (1<<2)
+#define GET_BASIC_INFO     (1<<0)  /* For example: platform, num_seeds */
+#define GET_SEED           (1<<1)
+#define GET_ATTKB          (1<<2)
+#define GET_RPMB_KEY       (1<<3)
 
 typedef struct ta_permission {
 	uuid_t uuid;
@@ -43,9 +44,9 @@ typedef struct ta_permission {
 static uint32_t get_ta_permission(void)
 {
 	ta_permission_t ta_permission_matrix[] = {
-		{HWCRYPTO_SRV_APP_UUID, GET_SEED},
+		{HWCRYPTO_SRV_APP_UUID, GET_SEED | GET_RPMB_KEY},
 		{KEYMASTER_SRV_APP_UUID, GET_ATTKB},
-		{SECURE_STORAGE_SERVER_APP_UUID, GET_RPMB_KEY}
+		{SECURE_STORAGE_SERVER_APP_UUID, GET_BASIC_INFO}
 		};
 	uint i;
 
