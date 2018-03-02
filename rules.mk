@@ -42,7 +42,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/entry.c \
 	$(LOCAL_DIR)/vmcall.c \
-	$(LOCAL_DIR)/lib/pci/pci_config.c
+	$(LOCAL_DIR)/lib/pci/pci_config.c \
+	$(LOCAL_DIR)/lib/smc/smc_x86.c
 
 ifeq ($(WITH_SMP),1)
 MODULE_SRCS += \
