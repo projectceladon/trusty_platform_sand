@@ -19,7 +19,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-ANDROID_ROOT := $(LOCAL_DIR)/../../../..
+ANDROID_ROOT := $(LOCAL_DIR)/../../../../..
 LZMA_ROOT := $(ANDROID_ROOT)/external/lzma/C
 
 GLOBAL_INCLUDES += $(LZMA_ROOT)

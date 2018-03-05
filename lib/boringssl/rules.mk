@@ -23,7 +23,7 @@ ifeq (true, $(call TOBOOL,$(ENABLE_STATIC_LIB)))
 MODULE_STATIC_LIB := true
 endif
 
-BORINGSSL_ROOT := $(LOCAL_DIR)/../../../../external/boringssl
+BORINGSSL_ROOT := $(LOCAL_DIR)/../../../../../external/boringssl
 
 ifeq ($(ARCH), x86)
 TARGET_ARCH := $(SUBARCH)
