@@ -1,0 +1,8 @@
+tinyxml2
+========
+
+A library to parse XML.
+Note that the module is ported from external/tinyxml2 directory in AOSP.
+Version: 1.0.6
+
+Official URL: https://github.com/leethomason/tinyxml2/releases
