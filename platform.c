@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <kernel/vm.h>
 #include "mem_map.h"
-#include <lib/trusty/trusty_device_info.h>
+#include "trusty_device_info.h"
 
 extern int _start;
 extern int _end;

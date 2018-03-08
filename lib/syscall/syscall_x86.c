@@ -28,7 +28,7 @@
 #include <lib/trusty/sys_fd.h>
 #include <lib/trusty/trusty_app.h>
 #include <platform/sand.h>
-#include <lib/trusty/trusty_device_info.h>
+#include "trusty_device_info.h"
 
 #define GET_NONE           0
 #define GET_SEED           (1<<0)

@@ -29,13 +29,13 @@
 
 #include <platform/sand.h>
 #include <platform/vmcall.h>
-#include <lib/trusty/trusty_device_info.h>
 #include <kernel/vm.h>
 #include <debug.h>
 #include <string.h>
 
 #include "cse_msg.h"
 #include "heci_impl.h"
+#include "trusty_device_info.h"
 
 #define LOCAL_DEBUG 0
 #define DEBUG(fmt, ...) do { if(LOCAL_DEBUG) dprintf(0, "%04u: " fmt, __LINE__, ##__VA_ARGS__); } while(0)

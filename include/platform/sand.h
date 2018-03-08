@@ -20,7 +20,7 @@
 #include <platform/sand_defs.h>
 #include <platform/uart.h>
 #include <platform/pci_config.h>
-#include <lib/trusty/trusty_device_info.h>
+#include "trusty_device_info.h"
 
 /* Please keep align with definition in iKGT trusty_guest.h*/
 typedef struct _trusty_startup_info{
