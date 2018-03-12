@@ -57,6 +57,13 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/mp_init.c
 endif
 
+ifeq (true, $(WITH_CUSTOMIZED_BOOTSTRAP))
+#WITH_CUSTOMIZED_BOOTSTRAP := true
+MODULE_SRCS += \
+	$(LOCAL_DIR)/start.S
+endif
+
+
 # Send EOI by default, this needs eVmm support, please consult owner of eVmm.
 ISSUE_EOI ?= 1
 
