@@ -49,7 +49,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/lib/pci/pci_config.c \
 	$(LOCAL_DIR)/lib/syscall/syscall_x86.c \
 	$(LOCAL_DIR)/lib/heci/heci.c \
-	$(LOCAL_DIR)/lib/smc/smc_x86.c
+	$(LOCAL_DIR)/lib/smc/smc_x86.c \
+	$(LOCAL_DIR)/utilities.c \
+
 
 ifeq ($(WITH_SMP),1)
 MODULE_SRCS += \

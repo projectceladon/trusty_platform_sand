@@ -75,8 +75,6 @@ status_t unmask_interrupt(unsigned int vector)
 
 extern enum handler_return sm_handle_irq(void);
 
-extern int32_t is_lk_boot_complete;
-
 enum handler_return platform_irq(x86_iframe_t *frame)
 {
     /* get the current vector */
@@ -114,7 +112,7 @@ enum handler_return platform_irq(x86_iframe_t *frame)
      * If INT_RESCH triggered at run time, it should be triggered
      * by Android side, redirect it back to Androd.
      * */
-    if ((0 == is_lk_boot_complete) && (INT_RESCH == vector))
+    if (is_lk_boot_complete() && (INT_RESCH == vector))
         lapic_eoi();
 #endif
 

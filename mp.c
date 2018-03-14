@@ -24,7 +24,6 @@
 #include <platform/sand.h>
 #include <platform/vmcall.h>
 
-extern int32_t is_lk_boot_complete;
 static void send_reschedule_ipi(uint32_t cpuid)
 {
     /*
@@ -32,7 +31,7 @@ static void send_reschedule_ipi(uint32_t cpuid)
      * since only one processor runs on run time due to
      * Google Trusty SMC mechanism.
      */
-    if (0 == is_lk_boot_complete) {
+    if (is_lk_boot_complete()) {
         if (UINT32_MAX == cpuid) {
             return lapic_send_ipi_excluding_self(APIC_DM_FIXED, INT_RESCH);
         } else {

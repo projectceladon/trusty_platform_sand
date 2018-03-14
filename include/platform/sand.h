@@ -17,6 +17,7 @@
 #define __SAND_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <platform/sand_defs.h>
 #include <platform/uart.h>
 #include <platform/pci_config.h>
@@ -43,12 +44,11 @@ typedef struct _trusty_startup_info{
 extern trusty_startup_info_t g_trusty_startup_info;
 extern device_sec_info_t* g_sec_info;
 
-extern int32_t is_lk_boot_complete;
-
 void platform_init_interrupts(void);
 void platform_init_timer(void);
 void platform_init_uart(void);
 void clear_sensitive_data(void);
+bool is_lk_boot_complete(void);
 
 uint8_t pci_read8(uint8_t bus,
             uint8_t device,

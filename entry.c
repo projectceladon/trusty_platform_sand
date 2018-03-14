@@ -13,22 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <lib/sm.h>
 #include <lib/sm/smcall.h>
 #include <lib/sm/sm_err.h>
-#include <arch/arch_ops.h>
 #include <platform/vmcall.h>
-#include <trace.h>
-#include <arch/local_apic.h>
-
-#define LOCAL_TRACE 1
 
 extern smc32_handler_t sm_fastcall_table[SMC_NUM_ENTITIES];
 extern uint32_t sm_nr_fastcall_functions;
 extern smc32_handler_t sm_fastcall_function_table[];
 extern long smc_undefined(smc32_args_t * args);
-
-int32_t is_lk_boot_complete = 0;
 
 void sm_sched_nonsecure(long retval, smc32_args_t * args)
 {
@@ -36,24 +28,6 @@ void sm_sched_nonsecure(long retval, smc32_args_t * args)
     u_int entry_nr;
     smc32_handler_t handler_fn = NULL;
 return_sm_err:
-    /*
-     * All interrupts are masked at LK boot stage,
-     * unmask all interruptes before LK switch back to NS world.
-     */
-    if (0 == is_lk_boot_complete) {
-#if WITH_SMP
-        /*
-         * Local APIC is disabled by default, if LK enabled Local APIC
-         * without disabled it, Linux kernel will detected this exception.
-         * Since Linux kernel believes Local APIC is disabled by default.
-         */
-        lapic_software_disable();
-#endif
-        x86_set_cr8(0);
-
-        if (0 == arch_curr_cpu_num())
-            is_lk_boot_complete = 1;
-    }
 
     make_smc_vmcall(args, retval);
 

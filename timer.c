@@ -16,9 +16,9 @@
 #include <sys/types.h>
 #include <err.h>
 #include <platform.h>
+#include <platform/sand.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
-#include <platform/sand.h>
 #include <kernel/vm.h>
 #include <arch/x86.h>
 #include <arch/arch_ops.h>
@@ -99,7 +99,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
     timer_delta_time = interval;
 
 #ifdef WITH_SM_WALL
-    if(is_lk_boot_complete) {
+    if(is_lk_boot_complete()) {
         set_backup_timer(interval);
     }
 #endif
@@ -110,7 +110,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback,
 void platform_stop_timer(void)
 {
 #ifdef WITH_SM_WALL
-    if(is_lk_boot_complete) {
+    if(is_lk_boot_complete()) {
         stop_backup_timer();
     }
 #endif
