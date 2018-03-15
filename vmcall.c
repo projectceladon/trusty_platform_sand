@@ -22,17 +22,6 @@
 #define EVMM_EPT_UPDATE_HC_ID           0x65707501
 #endif
 
-#define asm_smc(smc_id, args, ret) \
-do { \
-    __asm__ __volatile__( \
-        "vmcall;" \
-        :"=D"(args->smc_nr), "=S"(args->params[0]), \
-        "=d"(args->params[1]), "=b"(args->params[2]) \
-        :"r"(smc_id), "D"(ret), "S"(args->params[0]), \
-        "d"(args->params[1]), "b"(args->params[2]) \
-    ); \
-} while (0)
-
 /* The SMC was called before smc_init() on Simics, then LK will crash.
  * Workaround: initialize make_smc_vmcall with make_smc_vmcall_evmm(). */
 void (*make_smc_vmcall)(smc32_args_t *args, long ret) = make_smc_vmcall_evmm;
@@ -41,14 +30,27 @@ void make_smc_vmcall_evmm(smc32_args_t *args, long ret)
 {
     register unsigned long smc_id __asm__("rax") = EVMM_SMC_HC_ID;
 
-    asm_smc(smc_id, args, ret);
+    __asm__ __volatile__(
+        "vmcall;"
+        :"=D"(args->smc_nr), "=S"(args->params[0]),
+        "=d"(args->params[1]), "=b"(args->params[2])
+        :"r"(smc_id), "D"(ret), "S"(args->params[0]),
+        "d"(args->params[1]), "b"(args->params[2])
+    );
 }
 
 void make_smc_vmcall_acrn(smc32_args_t *args, long ret)
 {
     register unsigned long smc_id __asm__("r8") = ACRN_SMC_HC_ID;
 
-    asm_smc(smc_id, args, ret);
+    __asm__ __volatile__(
+        "vmcall;"
+        :"=D"(args->smc_nr), "=S"(args->params[0]),
+        "=d"(args->params[1]), "=b"(args->params[2])
+        :"r"(smc_id), "D"(ret), "S"(args->params[0]),
+        "d"(args->params[1]), "b"(args->params[2])
+        :"rax"
+    );
 }
 
 #ifdef EPT_DEBUG
