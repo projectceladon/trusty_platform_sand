@@ -14,21 +14,11 @@
  * limitations under the License.
  *******************************************************************************/
 
-#include <assert.h>
-#include <debug.h>
-#include <err.h>
-#include <kernel/thread.h>
-#include <kernel/mutex.h>
-#include <mm.h>
-#include <stdlib.h>
 #include <string.h>
-
-#include <platform.h>
-#include <uthread.h>
-#include <lib/trusty/sys_fd.h>
 #include <lib/trusty/trusty_app.h>
+
+#include <kernel/mutex.h>
 #include <platform/sand.h>
-#include "trusty_device_info.h"
 
 #define GET_NONE           0
 #define GET_BASIC_INFO     (1<<0)  /* For example: platform, num_seeds */

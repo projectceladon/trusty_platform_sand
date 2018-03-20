@@ -13,22 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <stdarg.h>
-#include <reg.h>
-#include <stdio.h>
-#include <kernel/thread.h>
-#include <arch/x86.h>
 #include <arch/x86/mmu.h>
-#include <lib/cbuf.h>
-#include <platform/interrupts.h>
-#include <platform/debug.h>
-#include <platform/sand.h>
-#include <string.h>
 #include <kernel/vm.h>
 #include <kernel/mutex.h>
-#include <platform/vmcall.h>
-
-#include <arch/spinlock.h>
+#include <platform/sand.h>
 
 #define BUF_SIZE 4096
 static char uart_early_buf[BUF_SIZE];

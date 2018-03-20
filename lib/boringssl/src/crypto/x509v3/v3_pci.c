@@ -33,14 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-#include <stdio.h>
-#include <string.h>
-
-#include <openssl/conf.h>
-#include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/obj.h>
 #include <openssl/x509v3.h>
 
 

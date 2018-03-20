@@ -13,14 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <err.h>
 
 #include <trusty_std.h>
-#include <lib/hwkey/hwkey.h>
 #include "trusty_key_migration.h"
 
 #define LOG_TAG "libhwkey_migration"

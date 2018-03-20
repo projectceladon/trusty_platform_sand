@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <platform/sand.h>
 #include <platform/vmcall.h>
 
 #define EVMM_SMC_HC_ID                  0x74727500
@@ -40,14 +39,14 @@ void (*make_smc_vmcall)(smc32_args_t *args, long ret) = make_smc_vmcall_evmm;
 
 void make_smc_vmcall_evmm(smc32_args_t *args, long ret)
 {
-    register unsigned long smc_id asm("rax") = EVMM_SMC_HC_ID;
+    register unsigned long smc_id __asm__("rax") = EVMM_SMC_HC_ID;
 
     asm_smc(smc_id, args, ret);
 }
 
 void make_smc_vmcall_acrn(smc32_args_t *args, long ret)
 {
-    register unsigned long smc_id asm("r8") = ACRN_SMC_HC_ID;
+    register unsigned long smc_id __asm__("r8") = ACRN_SMC_HC_ID;
 
     asm_smc(smc_id, args, ret);
 }

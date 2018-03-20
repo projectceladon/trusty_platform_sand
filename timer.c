@@ -13,15 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <sys/types.h>
 #include <err.h>
-#include <platform.h>
+#include <arch/arch_ops.h>
 #include <platform/sand.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
-#include <kernel/vm.h>
-#include <arch/x86.h>
-#include <arch/arch_ops.h>
 
 #if WITH_SM_WALL
 #include <lib/sm.h>
@@ -87,6 +83,29 @@ inline static void stop_backup_timer(void)
 {
     update_bakcup_timer(1, 0);
 }
+
+static void update_wall_cb(struct sm_wall_item *wi, void *item)
+{
+    struct sec_timer_state *wall_tm = item;
+
+    wall_tm->tv_ns = back_timer.tv_ns;
+    wall_tm->cv_ns = back_timer.cv_ns;
+
+    return;
+}
+
+static struct sm_wall_item timer_wall_item[SMP_MAX_CPUS] = {
+    [0 ... SMP_MAX_CPUS-1] =
+    SM_WALL_ITEM_INITIALIZE(SM_WALL_PER_CPU_SEC_TIMER_ID, update_wall_cb,
+        sizeof(struct bakcup_timer_t)),
+};
+
+static void reg_timer_wall_item(uint lvl)
+{
+    sm_wall_register_per_cpu_item(&timer_wall_item[arch_curr_cpu_num()]);
+}
+
+LK_INIT_HOOK_FLAGS(timer, reg_timer_wall_item, LK_INIT_LEVEL_PLATFORM + 1, LK_INIT_FLAG_ALL_CPUS);
 
 #endif
 
@@ -157,28 +176,3 @@ void platform_init_timer(void)
     unmask_interrupt(INT_PIT);
 }
 
-#if WITH_SM_WALL
-
-static void update_wall_cb(struct sm_wall_item *wi, void *item)
-{
-    struct sec_timer_state *wall_tm = item;
-
-    wall_tm->tv_ns = back_timer.tv_ns;
-    wall_tm->cv_ns = back_timer.cv_ns;
-
-    return;
-}
-
-static struct sm_wall_item timer_wall_item[SMP_MAX_CPUS] = {
-    [0 ... SMP_MAX_CPUS-1] =
-    SM_WALL_ITEM_INITIALIZE(SM_WALL_PER_CPU_SEC_TIMER_ID, update_wall_cb,
-        sizeof(struct bakcup_timer_t)),
-};
-
-static void reg_timer_wall_item(uint lvl)
-{
-    sm_wall_register_per_cpu_item(&timer_wall_item[arch_curr_cpu_num()]);
-}
-
-LK_INIT_HOOK_FLAGS(timer, reg_timer_wall_item, LK_INIT_LEVEL_PLATFORM + 1, LK_INIT_FLAG_ALL_CPUS);
-#endif

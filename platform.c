@@ -13,21 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <err.h>
-#include <arch/x86/mmu.h>
-#include <platform.h>
-#include <platform/sand.h>
-#include <platform/multiboot.h>
-#include <platform/vmcall.h>
-#include <arch/x86.h>
-#include <arch/mmu.h>
-#include <arch/local_apic.h>
-#include <malloc.h>
 #include <string.h>
 #include <assert.h>
+#include <arch/x86/mmu.h>
+#include <arch/x86.h>
+#include <arch/local_apic.h>
 #include <kernel/vm.h>
-#include "mem_map.h"
-#include "trusty_device_info.h"
+#include <platform/sand.h>
+#include <platform/vmcall.h>
 
 extern int _start;
 extern int _end;

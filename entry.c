@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <lib/sm/smcall.h>
 #include <lib/sm/sm_err.h>
 #include <platform/vmcall.h>
 
@@ -32,11 +31,11 @@ return_sm_err:
     make_smc_vmcall(args, retval);
 
     smc_nr = args->smc_nr;
-    if (SMC_IS_SMC64(smc_nr)) {/* 64bits */
+    if (SMC_IS_SMC64(smc_nr)) {
         retval = SM_ERR_NOT_SUPPORTED;
         goto return_sm_err;
     }
-    if (!SMC_IS_FASTCALL(smc_nr)) {	/* not fast call */
+    if (!SMC_IS_FASTCALL(smc_nr)) {
         return;
     }
 

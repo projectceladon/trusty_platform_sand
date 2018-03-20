@@ -14,14 +14,12 @@
  * limitations under the License.
  *******************************************************************************/
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <lib/sm.h>
-#include <lib/sm/smcall.h>
-#include <lk/init.h>
 #include <lib/sm/sm_err.h>
 #include <arch/local_apic.h>
 #include <platform/sand_defs.h>
+#include <lk/init.h>
 
 /* Max entity defined as SMC_NUM_ENTITIES(64) */
 #define SMC_ENTITY_SMC_X86 63 /* Used for customized SMC calls */
@@ -65,7 +63,7 @@ static void smc_x86_init(uint level)
 
     err = sm_register_entity(SMC_ENTITY_SMC_X86, &smc_x86_entity);
     if (err) {
-        printf("Failed to register self IPI: %d\n", err);
+        dprintf(CRITICAL,"Failed to register self IPI: %d\n", err);
     }
 }
 LK_INIT_HOOK(x86smc, smc_x86_init, LK_INIT_LEVEL_APPS);

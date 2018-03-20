@@ -10,12 +10,8 @@ ifneq ($(SMP_MAX_CPUS),1)
 WITH_SMP := 1
 endif
 
-TRUSTY_RSV_MEM_SIZE = 0x01400000
-TARGET_MAX_MEM_SIZE = 0x80000000
-
 MODULE_DEPS += \
-	lib/cbuf \
-	lib/lwip \
+	lib/cbuf
 
 WITH_SM_WALL=1
 GLOBAL_DEFINES += \

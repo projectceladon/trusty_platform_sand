@@ -14,13 +14,11 @@
  * limitations under the License.
  *******************************************************************************/
 #include <arch/x86.h>
-#include <arch/local_apic.h>
-#include <platform/sand.h>
 #include <lk/init.h>
 
 static bool lk_boot_complete = false;
 
-bool is_lk_boot_complete()
+bool is_lk_boot_complete(void)
 {
     return lk_boot_complete;
 }
@@ -52,6 +50,6 @@ void set_lk_boot_complete(void)
  *  and stays in WATI_FOR_SIPI status
  * needs to check whether BSP boots complete, and prepare swtich back to Android.
  */
-LK_INIT_HOOK_FLAGS(set_lk_boot_status, set_lk_boot_complete,
+LK_INIT_HOOK_FLAGS(set_lk_boot_status, (lk_init_hook) set_lk_boot_complete,
         LK_INIT_LEVEL_LAST, LK_INIT_FLAG_PRIMARY_CPU);
 

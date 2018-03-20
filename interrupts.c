@@ -13,21 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#include <sys/types.h>
-#include <debug.h>
 #include <err.h>
-#include <reg.h>
-#include <kernel/thread.h>
-#include <platform/interrupts.h>
-#include <arch/ops.h>
-#include <arch/x86.h>
+#include <lib/sm.h>
 #include <arch/local_apic.h>
 #ifdef ENABLE_FPU
 #include <arch/fpu.h>
 #endif
-#include <kernel/spinlock.h>
+#include <kernel/thread.h>
+#include <platform/interrupts.h>
 #include <platform/sand.h>
-#include <lib/sm.h>
 
 static spin_lock_t lock;
 
