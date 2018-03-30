@@ -10,6 +10,13 @@ ifneq ($(SMP_MAX_CPUS),1)
 WITH_SMP := 1
 endif
 
+#disable attkb through heci by default
+ATTKB_HECI ?= 0
+ifeq ($(ATTKB_HECI), 1)
+GLOBAL_DEFINES += \
+        ATTKB_HECI=1
+endif
+
 MODULE_DEPS += \
 	lib/cbuf
 
@@ -44,10 +51,14 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/vmcall.c \
 	$(LOCAL_DIR)/lib/pci/pci_config.c \
 	$(LOCAL_DIR)/lib/syscall/syscall_x86.c \
-	$(LOCAL_DIR)/lib/heci/heci.c \
 	$(LOCAL_DIR)/lib/smc/smc_x86.c \
 	$(LOCAL_DIR)/utilities.c \
 
+
+ifeq ($(ATTKB_HECI), 1)
+MODULE_SRCS += \
+	$(LOCAL_DIR)/lib/heci/heci.c
+endif
 
 ifeq ($(WITH_SMP),1)
 MODULE_SRCS += \

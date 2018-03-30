@@ -246,7 +246,9 @@ void platform_init(void)
 
     smc_init();
 
+#if ATTKB_HECI
     cse_init();
+#endif
 
     platform_init_mmu_mappings();
     x86_mmu_init();

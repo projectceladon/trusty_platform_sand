@@ -89,8 +89,10 @@ uint64_t pci_read_bar0(uint16_t pci_location);
 void x86_mp_init(uint32_t ap_startup_addr);
 #endif
 
+#if ATTKB_HECI
 void cse_init(void);
 uint32_t get_attkb(uint8_t *attkb);
+#endif
 static inline void x86_set_cr8(uint64_t in_val)
 {
        __asm__ __volatile__ (

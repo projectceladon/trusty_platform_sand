@@ -58,6 +58,7 @@ static uint32_t get_ta_permission(void)
 	return GET_NONE;
 }
 
+#if ATTKB_HECI
 uint32_t copy_attkb_to_user(user_addr_t user_attkb)
 {
 	uint8_t *attkb = NULL;
@@ -85,6 +86,7 @@ uint32_t copy_attkb_to_user(user_addr_t user_attkb)
 	free(attkb);
 	return attkb_size;
 }
+#endif
 /*
  * Based on the design the IMR region for LK will reserved some bytes for ROT
  * and seed storage (size = sizeof(seed_response_t)+sizeof(rot_data_t))
@@ -129,7 +131,11 @@ long sys_get_device_info(user_addr_t info)
 	}
 
 	if (ta_permission & GET_ATTKB) {
+#if ATTKB_HECI
 		dev_info->attkb_size = copy_attkb_to_user(info + sizeof(trusty_device_info_t));
+#else
+		dev_info->attkb_size = 0;
+#endif
 	}
 
 	ret = copy_to_user(info, dev_info, sizeof(trusty_device_info_t));
