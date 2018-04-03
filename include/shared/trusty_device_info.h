@@ -107,7 +107,7 @@ typedef struct {
 #define DUMMY_PLATFORM     0
 #define APL_PLATFORM       1
 #define ICL_PLATFORM       2
-#define CWP_PLATFORM       3
+#define ACRN_PLATFORM      3
 #define BRILLO_PLATFORM    4
 
 /* AttKB size is limited to 16KB */
