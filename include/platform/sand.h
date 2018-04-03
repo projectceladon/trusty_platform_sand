@@ -91,4 +91,11 @@ void x86_mp_init(uint32_t ap_startup_addr);
 
 void cse_init(void);
 uint32_t get_attkb(uint8_t *attkb);
+static inline void x86_set_cr8(uint64_t in_val)
+{
+       __asm__ __volatile__ (
+               "movq %0, %%cr8 \n\t"
+               :
+               :"r" (in_val));
+}
 #endif

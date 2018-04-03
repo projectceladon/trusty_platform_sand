@@ -15,6 +15,7 @@
  *******************************************************************************/
 #include <arch/x86.h>
 #include <lk/init.h>
+#include <platform/sand.h>
 
 static bool lk_boot_complete = false;
 
