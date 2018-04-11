@@ -20,6 +20,7 @@
 #include <arch/local_apic.h>
 #include <platform/sand_defs.h>
 #include <lk/init.h>
+#include <debug.h>
 
 /* Max entity defined as SMC_NUM_ENTITIES(64) */
 #define SMC_ENTITY_SMC_X86 63 /* Used for customized SMC calls */
@@ -67,3 +68,8 @@ static void smc_x86_init(uint level)
     }
 }
 LK_INIT_HOOK(x86smc, smc_x86_init, LK_INIT_LEVEL_APPS);
+
+long smc_intc_fiq_resume(smc32_args_t *args)
+{
+    return 0;
+}
