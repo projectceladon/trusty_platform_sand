@@ -37,12 +37,16 @@ extern void arch_mmu_init_percpu(void);
 extern void init_uart(void);
 #endif
 
+/* Store physical address LK is located. */
+uintptr_t entry_phys = 0;
+
+/* For 16MB memory mapping */
+map_addr_t pde_kernel[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+/* Acutally needs 8 entries only, 1 more for unalignment mapping */
+map_addr_t pte_kernel[NO_OF_PT_ENTRIES * 9] __ALIGNED(PAGE_SIZE);
 trusty_startup_info_t g_trusty_startup_info __ALIGNED(8);
 uint8_t g_sec_info_buf[PAGE_SIZE] __ALIGNED(8);
 device_sec_info_t *g_sec_info = (device_sec_info_t *)g_sec_info_buf;
-uintptr_t real_run_addr;
-
-volatile map_addr_t g_cr3 = 0;
 
 enum {
     VMM_ID_EVMM = 0,
@@ -78,6 +82,26 @@ static inline int detect_vmm(void)
 }
 
 #ifdef WITH_KERNEL_VM
+#if TRUSTY_ANDROID_P
+struct mmu_initial_mapping mmu_initial_mappings[] = {
+    /* 16MB of memory mapped where the kernel lives */
+    {
+        .phys = MEMBASE + KERNEL_LOAD_OFFSET,
+        .virt = KERNEL_BASE + KERNEL_LOAD_OFFSET,
+        .size = 16*MB,
+        .flags = MMU_INITIAL_MAPPING_TEMPORARY,
+        .name = "kernel"
+    },
+    {
+        .phys = MEMBASE + KERNEL_LOAD_OFFSET,
+        .virt = KERNEL_ASPACE_BASE + KERNEL_LOAD_OFFSET,
+        .size = 64*GB,
+        .flags = 0,
+        .name = "memory"
+    },
+    {0}
+};
+#else
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 16MB of memory mapped where the kernel lives */
     {
@@ -89,6 +113,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     },
     {0}
 };
+#endif
 
 static pmm_arena_t heap_arena = {
     .name = "memory",
@@ -100,8 +125,15 @@ static pmm_arena_t heap_arena = {
 
 static void heap_arena_init(void)
 {
-    heap_arena.base = PAGE_ALIGN(mmu_initial_mappings[0].phys);
-    heap_arena.size = PAGE_ALIGN(mmu_initial_mappings[0].size);
+#if TRUSTY_ANDROID_P
+    uint64_t rsvd = (uint64_t)&__bss_end - (uint64_t)(mmu_initial_mappings[0].virt);
+    rsvd += KERNEL_LOAD_OFFSET;
+#else
+    uint64_t rsvd = 0;
+#endif
+
+    heap_arena.base = PAGE_ALIGN(mmu_initial_mappings[0].phys + rsvd);
+    heap_arena.size = PAGE_ALIGN(mmu_initial_mappings[0].size - rsvd);
 }
 #endif
 
@@ -109,7 +141,7 @@ static void platform_update_pagetable(void)
 {
     struct map_range range;
     arch_flags_t access;
-    map_addr_t pml4_table = (map_addr_t)paddr_to_kvaddr(get_kernel_cr3());
+    map_addr_t pml4_table = (map_addr_t)paddr_to_kvaddr(x86_get_cr3());
 
     /* kernel code section mapping */
     access = ARCH_MMU_FLAG_PERM_RO;
@@ -168,9 +200,8 @@ static void platform_update_pagetable(void)
 
 void platform_init_mmu_mappings(void)
 {
-    /* Moving to the new CR3 */
-    g_cr3 = x86_get_cr3();
-    x86_set_cr3(g_cr3);
+    /* Flush TLB */
+    x86_set_cr3(x86_get_cr3());
 }
 
 void clear_sensitive_data(void)
@@ -211,7 +242,11 @@ static void platform_heap_init(void)
 {
     mmu_initial_mappings[0].phys = g_trusty_startup_info.trusty_mem_base;
     mmu_initial_mappings[0].virt = (vaddr_t)&_start;
-    mmu_initial_mappings[0].virt -= (real_run_addr - g_trusty_startup_info.trusty_mem_base);
+    mmu_initial_mappings[0].virt -= (entry_phys - g_trusty_startup_info.trusty_mem_base);
+
+    mmu_initial_mappings[1].phys = g_trusty_startup_info.trusty_mem_base;
+    mmu_initial_mappings[1].virt = g_trusty_startup_info.trusty_mem_base + KERNEL_ASPACE_BASE;
+    mmu_initial_mappings[1].size -= g_trusty_startup_info.trusty_mem_base;
 }
 
 void platform_early_init(void)
