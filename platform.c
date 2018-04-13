@@ -70,10 +70,8 @@ static inline int detect_vmm(void)
     int i;
 
     __asm__ __volatile__ (
-        "xchgl %%ebx, %0  \n\t"  // save ebx
-        "cpuid            \n\t"
-        "xchgl %%ebx, %0  \n\t"  // restore ebx
-        : "=r" (signature[0]),
+        "cpuid\n\t"
+        : "=b" (signature[0]),
           "=c" (signature[1]),
           "=d" (signature[2])
         : "a" (0x40000000)
