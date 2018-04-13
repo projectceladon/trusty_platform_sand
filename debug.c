@@ -142,6 +142,12 @@ int platform_dgetc(char *c, bool wait)
 void init_uart(void)
 {
     uint64_t io_base = 0;
+
+#if TRUSTY_ANDROID_P
+    io_base = (uint64_t)(pci_read32(SERIAL_PCI_BUS, SERIAL_PCI_DEV, SERIAL_PCI_FUN, 0x10) & ~0xF);
+
+    mmio_base_addr = KERNEL_ASPACE_BASE + io_base;
+#else
     arch_flags_t access = ARCH_MMU_FLAG_PERM_NO_EXECUTE | ARCH_MMU_FLAG_UNCACHED | ARCH_MMU_FLAG_PERM_USER;
     struct map_range range;
     map_addr_t pml4_table = (map_addr_t)paddr_to_kvaddr(get_kernel_cr3());
@@ -154,6 +160,7 @@ void init_uart(void)
     x86_mmu_map_range(pml4_table, &range, access);
 
     mmio_base_addr = range.start_vaddr;
+#endif
 
 #ifdef EPT_DEBUG
     make_ept_update_vmcall(ADD, io_base, 4096);

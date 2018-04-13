@@ -17,8 +17,12 @@
 #include <string.h>
 #include <lib/trusty/trusty_app.h>
 
+#if TRUSTY_ANDROID_P
+#include <kernel/usercopy.h>
+#endif
 #include <kernel/mutex.h>
 #include <platform/sand.h>
+#include <uapi/err.h>
 
 #define GET_NONE           0
 #define GET_BASIC_INFO     (1<<0)  /* For example: platform, num_seeds */
@@ -40,7 +44,11 @@ static uint32_t get_ta_permission(void)
 		};
 	uint i;
 
+#if TRUSTY_ANDROID_P
+	trusty_app_t *trusty_app = current_trusty_thread()->app;
+#else
 	trusty_app_t *trusty_app = uthread_get_current()->private_data;
+#endif
 	for (i = 0; i < sizeof(ta_permission_matrix)/sizeof(ta_permission_matrix[0]); i++) {
 		/* check uuid from the permission matrix */
 		if (!memcmp(&trusty_app->props.uuid, &ta_permission_matrix[i].uuid, sizeof(uuid_t))) {
