@@ -114,7 +114,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
         .flags = 0,
         .name = "kernel"
     },
-    {0}
+    {0, 0, 0, 0, 0}
 };
 #endif
 
