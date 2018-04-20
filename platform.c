@@ -22,6 +22,11 @@
 #include <platform/sand.h>
 #include <platform/vmcall.h>
 
+#define GET_STEPPING_ID(val)    ((val) & 0xF)
+#define GET_MODEL(val)          (((val) >> 4) & 0xF)
+#define GET_FAMILY_ID(val)      (((val) >> 8) & 0xF)
+#define SEP_BIT                 11
+
 extern int _start;
 extern int _end;
 extern uint64_t __code_start;
@@ -274,6 +279,60 @@ void platform_early_init(void)
 #endif
 }
 
+static inline void __cpuid(uint64_t cpu_info[4], uint64_t leaf, uint64_t subleaf)
+{
+    __asm__ __volatile__ (
+        "pushq %%rbx;" /* save the ebx */
+        "cpuid;"
+        "mov %%rbx, %1;" /* save what cpuid just put in ebx */
+        "popq %%rbx;" /* restore the old ebx */
+        : "=a" (cpu_info[0]),
+          "=r" (cpu_info[1]),
+          "=c" (cpu_info[2]),
+          "=d" (cpu_info[3])
+        : "a" (leaf), "c" (subleaf)
+        : "cc"
+        );
+}
+
+static inline bool is_sep_support(uint64_t val)
+{
+    return !!BITMAP_GET(val, SEP_BIT);
+}
+
+static inline bool is_family_6_support(uint64_t val)
+{
+    if ((GET_FAMILY_ID(val) == 0x6)
+            && (GET_MODEL(val) < 0x3)
+            && (GET_STEPPING_ID(val) < 0x3))
+        return false;
+
+    return true;
+}
+
+static bool is_sysenter_support(void)
+{
+    uint64_t info[4];
+
+    /* CPUID leaf:1 subleaf:0 */
+    __cpuid(info, 1, 0);
+
+    /* CPUID: An OS that qualifies the SEP flag must also qualify the processor
+     * family and model to ensure that the SYSENTER/SYSEXIT instructions are actually present
+     */
+    dprintf(SPEW, "SEP: 0x%x,Family_ID: 0x%llx,"
+        "Model: 0x%llx,Stepping_ID: 0x%llx\n",
+        is_sep_support(info[3]), GET_FAMILY_ID(info[0]),
+        GET_MODEL(info[0]), GET_STEPPING_ID(info[0]));
+    if (!is_sep_support(info[3]))
+        return false;
+
+    if (!is_family_6_support(info[0]))
+        return false;
+
+    return true;
+}
+
 void platform_init(void)
 {
     /* MMU init for x86 Archs done after the heap is setup */
@@ -284,6 +343,8 @@ void platform_init(void)
 #if ATTKB_HECI
     cse_init();
 #endif
+    if (!is_sysenter_support())
+        panic("Sysenter unsupport!\n");
 
     platform_init_mmu_mappings();
     x86_mmu_init();
