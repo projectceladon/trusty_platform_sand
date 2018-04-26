@@ -22,6 +22,7 @@
 #include <kernel/thread.h>
 #include <platform/interrupts.h>
 #include <platform/sand.h>
+#include <lk/init.h>
 
 static spin_lock_t lock;
 
@@ -39,11 +40,41 @@ struct int_handler_struct {
 
 static struct int_handler_struct int_handler_table[INT_VECTORS];
 
+#define PIC1_DATA 0x21
+#define PIC2_DATA 0xA1
+
+static char master_pic, slave_pic;
+
+/*
+ * Diabled PIC beofre use the processor Local APIC and IOAPIC.
+ * Interrupt 8/9 (not exception) triggered by PIC when enabling
+ * on QEMU platform, interrupt is triggered by PIC.
+ */
+static void disable_pic(void) {
+    /* save PIC value */
+    master_pic = inp(PIC1_DATA);
+    slave_pic = inp(PIC2_DATA);
+
+    /* disable all IRQs */
+    outp(PIC1_DATA, 0xff);
+    outp(PIC2_DATA, 0xff);
+}
+
+void restore_pic(void)
+{
+    outp(PIC1_DATA, master_pic);
+    outp(PIC2_DATA, slave_pic);
+}
+
+LK_INIT_HOOK_FLAGS(restore_pic, (lk_init_hook)restore_pic,
+        LK_INIT_LEVEL_LAST-1, LK_INIT_FLAG_PRIMARY_CPU);
+
 void platform_init_interrupts(void)
 {
     /*
      * Mask all interrputs before LK bootup
      */
+    disable_pic();
     x86_set_cr8(0xF);
 }
 
@@ -157,4 +188,3 @@ long smc_intc_request_fiq(smc32_args_t *args)
 {
     return NO_ERROR;
 }
-
