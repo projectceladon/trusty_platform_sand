@@ -17,6 +17,7 @@
 #include <kernel/vm.h>
 #include <kernel/mutex.h>
 #include <platform/sand.h>
+#include <lk/init.h>
 
 #define BUF_SIZE 4096
 static char uart_early_buf[BUF_SIZE];
@@ -168,5 +169,28 @@ void init_uart(void)
 
     uart_putc('\n');
 }
-#endif
 
+void uart_remap(void)
+{
+    status_t ret;
+    uint64_t io_base = 0;
+
+    io_base = (uint64_t)(pci_read32(SERIAL_PCI_BUS, SERIAL_PCI_DEV, SERIAL_PCI_FUN, 0x10) & ~0xF);
+    ret = vmm_alloc_physical(vmm_get_kernel_aspace(),
+            "uart",
+            4096,
+            (void **)&io_base,
+            PAGE_SIZE_SHIFT,
+            mmio_base_addr,
+            0,
+            ARCH_MMU_FLAG_UNCACHED_DEVICE);
+
+    if (ret) {
+        dprintf(CRITICAL, "Failed to allocate memory for UART!\n");
+        return;
+    }
+}
+
+LK_INIT_HOOK_FLAGS(uart_reinit, (lk_init_hook)uart_remap,
+        LK_INIT_LEVEL_VM + 1, LK_INIT_FLAG_PRIMARY_CPU);
+#endif

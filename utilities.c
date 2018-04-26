@@ -14,6 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 #include <arch/x86.h>
+#include <arch/local_apic.h>
 #include <lk/init.h>
 #include <platform/sand.h>
 
@@ -54,3 +55,5 @@ void set_lk_boot_complete(void)
 LK_INIT_HOOK_FLAGS(set_lk_boot_status, (lk_init_hook) set_lk_boot_complete,
         LK_INIT_LEVEL_LAST, LK_INIT_FLAG_PRIMARY_CPU);
 
+LK_INIT_HOOK_FLAGS(local_apic_reinit, (lk_init_hook) local_apic_reinit,
+        LK_INIT_LEVEL_VM + 1, LK_INIT_FLAG_PRIMARY_CPU);
