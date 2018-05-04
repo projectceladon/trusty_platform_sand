@@ -33,6 +33,10 @@
 #include "cse_msg.h"
 #include "heci_impl.h"
 
+#ifdef EPT_DEBUG
+#include <platform/vmcall.h>
+#endif
+
 #define LOCAL_DEBUG 0
 #define DEBUG(fmt, ...) do { if(LOCAL_DEBUG) dprintf(0, "%04u: " fmt, __LINE__, ##__VA_ARGS__); } while(0)
 
@@ -59,7 +63,7 @@ static int wait_event(uint32_t timeout, int (*fun)(uint64_t), uint64_t arg)
 {
     init_timer();
     uint32_t t0 = ClockCycles();
-    uint32_t elapsed;
+    volatile uint32_t elapsed;
     int res;
 
     timeout *= CPMS;
@@ -83,35 +87,35 @@ static int wait_event(uint32_t timeout, int (*fun)(uint64_t), uint64_t arg)
 
 static uint8_t heci_pci_read8(uint32_t reg)
 {
-    return *((uint8_t *)(cse_mmio_base_va + reg));
+    return *((volatile uint8_t *)(cse_mmio_base_va + reg));
 }
 
 static uint32_t heci_pci_read32(uint32_t reg)
 {
-    return *((uint32_t *)(cse_mmio_base_va + reg));
+    return *((volatile uint32_t *)(cse_mmio_base_va + reg));
 }
 
 static void heci_pci_write32(uint32_t reg, uint32_t val)
 {
-    *((uint32_t *)(cse_mmio_base_va + reg)) = val;
+    *((volatile uint32_t *)(cse_mmio_base_va + reg)) = val;
 }
 
 static void heci_pci_set16(uint32_t reg, uint32_t val)
 {
     uint16_t v;
 
-    v = *((uint16_t *)(cse_mmio_base_va + reg));
-    *((uint16_t *)(cse_mmio_base_va + reg)) = v | val;
+    v = *((volatile uint16_t *)(cse_mmio_base_va + reg));
+    *((volatile uint16_t *)(cse_mmio_base_va + reg)) = v | val;
 }
 
 static uint32_t heci_reg_read(uint64_t base, uint32_t offset)
 {
-    return *((uint32_t *)(base + offset));
+    return *((volatile uint32_t *)(base + offset));
 }
 
 static void heci_reg_write(uint64_t base, uint32_t offset, uint32_t val)
 {
-    *((uint32_t *)(base + offset)) = val;
+    *((volatile uint32_t *)(base + offset)) = val;
 }
 
 static int is_dev_ready(uint64_t base)
