@@ -85,7 +85,6 @@ static inline int detect_vmm(void)
 }
 
 #ifdef WITH_KERNEL_VM
-#if TRUSTY_ANDROID_P
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 16MB of memory mapped where the kernel lives */
     {
@@ -104,19 +103,6 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     },
     {0}
 };
-#else
-struct mmu_initial_mapping mmu_initial_mappings[] = {
-    /* 16MB of memory mapped where the kernel lives */
-    {
-        .phys = MEMBASE + KERNEL_LOAD_OFFSET,
-        .virt = KERNEL_BASE + KERNEL_LOAD_OFFSET,
-        .size = 16*MB,
-        .flags = 0,
-        .name = "kernel"
-    },
-    {0, 0, 0, 0, 0}
-};
-#endif
 
 static pmm_arena_t heap_arena = {
     .name = "memory",
@@ -128,12 +114,8 @@ static pmm_arena_t heap_arena = {
 
 static void heap_arena_init(void)
 {
-#if TRUSTY_ANDROID_P
     uint64_t rsvd = (uint64_t)&__bss_end - (uint64_t)(mmu_initial_mappings[0].virt);
     rsvd += KERNEL_LOAD_OFFSET;
-#else
-    uint64_t rsvd = 0;
-#endif
 
     heap_arena.base = PAGE_ALIGN(mmu_initial_mappings[0].phys + rsvd);
     heap_arena.size = PAGE_ALIGN(mmu_initial_mappings[0].size - rsvd);

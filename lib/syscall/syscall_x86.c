@@ -17,9 +17,7 @@
 #include <string.h>
 #include <lib/trusty/trusty_app.h>
 
-#if TRUSTY_ANDROID_P
 #include <kernel/usercopy.h>
-#endif
 #include <kernel/mutex.h>
 #include <platform/sand.h>
 #include <uapi/err.h>
@@ -44,11 +42,7 @@ static uint32_t get_ta_permission(void)
 		};
 	uint i;
 
-#if TRUSTY_ANDROID_P
 	trusty_app_t *trusty_app = current_trusty_thread()->app;
-#else
-	trusty_app_t *trusty_app = uthread_get_current()->private_data;
-#endif
 	for (i = 0; i < sizeof(ta_permission_matrix)/sizeof(ta_permission_matrix[0]); i++) {
 		/* check uuid from the permission matrix */
 		if (!memcmp(&trusty_app->props.uuid, &ta_permission_matrix[i].uuid, sizeof(uuid_t))) {

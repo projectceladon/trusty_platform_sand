@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-#if TRUSTY_ANDROID_P
 #include <macros.h>
 #include <arch/defines.h>
-#endif
 
 #include <platform/vmcall.h>
 
