@@ -49,6 +49,10 @@ uintptr_t entry_phys = 0;
 map_addr_t pde_kernel[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 /* Acutally needs 8 entries only, 1 more for unalignment mapping */
 map_addr_t pte_kernel[NO_OF_PT_ENTRIES * 9] __ALIGNED(PAGE_SIZE);
+
+/* a big pile of page tables needed to map 512GB of memory into kernel space using 2MB pages */
+map_addr_t linear_map_pdp_512[(512ULL*GB) / (2*MB)] __ALIGNED(PAGE_SIZE);
+
 trusty_startup_info_t g_trusty_startup_info __ALIGNED(8);
 uint8_t g_sec_info_buf[PAGE_SIZE] __ALIGNED(8);
 device_sec_info_t *g_sec_info = (device_sec_info_t *)g_sec_info_buf;
@@ -97,7 +101,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     {
         .phys = MEMBASE + KERNEL_LOAD_OFFSET,
         .virt = KERNEL_ASPACE_BASE + KERNEL_LOAD_OFFSET,
-        .size = 64*GB,
+        .size = 512*GB,
         .flags = 0,
         .name = "memory"
     },

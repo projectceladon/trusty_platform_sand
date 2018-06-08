@@ -26,19 +26,6 @@
 #include <arch/x86/descriptor.h>
 #include <arch/x86/mmu.h>
 
-/* The magic number for the Multiboot header. */
-#define MULTIBOOT_HEADER_MAGIC 0x1BADB002
-
-/* The flags for the Multiboot header. */
-#if defined(__ELF__) && 0
-#define MULTIBOOT_HEADER_FLAGS 0x00000002
-#else
-#define MULTIBOOT_HEADER_FLAGS 0x00010002
-#endif
-
-/* The magic number passed by a Multiboot-compliant boot loader. */
-#define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
-
 #define MSR_EFER    0xc0000080
 #define EFER_LME    0x00000100
 #define MSR_PAT     0x277
@@ -55,112 +42,231 @@
 #define PTD_SHIFT        12
 #define PTRS_MASK        (512 - 1)
 
-.macro save_info
-    /* save g_trusty_startup_info in local */
-    movl %edi, %esi
-    lea  PHYS(g_trusty_startup_info)(%ebp), %edi
-    movl $32, %ecx
-    shrl $2, %ecx
-    rep  movsl
+.section ".text.boot"
+.code32
 
-    /* clear previous g_trusty_startup_info */
-    movl $32, %ecx
-    shrl $2, %ecx
-2:
-    movl $0, (%eax)
-    addl $4, %eax
-    loop 2b
-
-    /* save g_sec_info in local */
-    movl PHYS(g_trusty_startup_info + 16)(%ebp), %esi
-    lea  PHYS(g_sec_info_buf)(%ebp), %edi
-    movl $4096, %ecx
-    shrl $2, %ecx
-    rep movsl
-
-    /* clear previous g_sec_info */
-    movl PHYS(g_trusty_startup_info + 16)(%ebp), %eax
-    movl $4096, %ecx
-    shrl $2, %ecx
-2:
-    movl $0, (%eax)
-    addl $4, %eax
-    loop 2b
-.endm
-
-.macro bootstrap_page_init
+/* Map 0 (VA) to 0 (PA), with 4G size. */
+.macro map_low_4G
     /* Setting the First PML4E with a PDP table reference*/
-    lea  PHYS(pdp)(%ebp), %eax
-    lea  PHYS(pml4)(%ebp), %edx
+    leal PHYS(pdpt_tmp)(%ebp), %eax
+    leal PHYS(pml4_tmp)(%ebp), %edx
     orl  $X86_KERNEL_PD_FLAGS, %eax
     movl %eax, (%edx)
 
+    /* Detect 1G leaf support */
+    movl $0x80000001, %eax
+    cpuid
+    bts $26, %edx
+    jnc .leaf_2M
+
+.leaf_1G:
+    leal PHYS(pdpt_tmp)(%ebp), %eax
+    movl $0x00000083, 0x00(%eax)
+    movl $0x40000083, 0x08(%eax)
+    movl $0x80000083, 0x10(%eax)
+    movl $0xC0000083, 0x18(%eax)
+    jmp .tmp_mapping_end
+
+.leaf_2M:
     /* Setting the First PDPTE with a Page table reference*/
-    /* 0 - 1G  */
-    lea  PHYS(pte)(%ebp), %eax
-    lea  PHYS(pdp)(%ebp), %edx
+    /* 0 - 4G  */
+    leal PHYS(pd_tmp)(%ebp), %eax
+    leal PHYS(pdpt_tmp)(%ebp), %edx
     orl  $X86_KERNEL_PD_FLAGS, %eax
+    movl $4, %ecx
+0:
     movl %eax, (%edx)
+    addl $0x8, %edx
+    addl $0x1000, %eax
+    loop 0b
 
-    /* 1G - 2G  */
-    lea  PHYS(pte + 0x1000)(%ebp), %eax
-    add  $0x8, %edx
-    orl  $X86_KERNEL_PD_FLAGS, %eax
-    movl %eax, (%edx)
-
-    /* point the pml4e at the last 512G (kernel aspace 64GB mapping) */
-    lea  PHYS(pdp_high)(%ebp), %eax
-    lea  PHYS(pml4 + 8*511)(%ebp), %edx
-    orl  $X86_KERNEL_PD_FLAGS, %eax
-    movl %eax, (%edx)
-
-    /* map the first 2GB in this table */
-    lea  PHYS(pte)(%ebp), %esi
-    movl $0x400, %ecx
-    xor  %eax, %eax
+    /* Map first 4GB in this table */
+    leal PHYS(pd_tmp)(%ebp), %esi
+    movl $0x800, %ecx
+    xorl %eax, %eax
 
 0:
-    mov  %eax, %ebx
+    movl %eax, %ebx
     shll $21, %ebx
     orl  $X86_KERNEL_PD_LP_FLAGS, %ebx
     movl %ebx, (%esi)
     addl $8,%esi
-    inc  %eax
+    incl %eax
+    loop 0b
+.tmp_mapping_end:
+.endm
+
+.global _start
+_start:
+
+.align 8
+
+    /* Get the offset between compiled entry address and */
+    /* actually entry address in ebp register temporary */
+    call 1f
+1:
+    popl %ebp
+    subl $PHYS(1b), %ebp
+
+    /* Update and load our new gdt by physical pointer */
+    lea  PHYS(_gdtr_phys)(%ebp), %eax
+    lea  PHYS(_gdt)(%ebp), %edx
+    movl %edx, 2(%eax)
+    lgdt (%eax)
+
+    /* Load our data selectors */
+    movw $DATA_SELECTOR, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %ss
+    movw %ax, %gs
+    movw %ax, %ss
+
+    /* Load initial stack pointer */
+    lea PHYS(_kstack + 4096)(%ebp), %esp
+
+    /* We need to jump to our sane 32 bit CS */
+    pushl $CODE_SELECTOR
+    lea   PHYS(.Lfarjump)(%ebp), %eax
+    pushl %eax
+    retf
+
+.Lfarjump:
+    /* Save pointer of trusty startup info */
+    pushl %edi
+
+    /* PAE bit must be enabled  for 64 bit paging*/
+    mov  %cr4, %eax
+    btsl $(5), %eax
+    mov  %eax, %cr4
+
+    /* Use temporary pml4_tmp for 4G mapping */
+    lea  PHYS(pml4_tmp)(%ebp), %eax
+    mov  %eax, %cr3
+
+    /* Long Mode Enabled at this point*/
+    movl $MSR_EFER, %ecx
+    rdmsr
+    orl  $EFER_LME, %eax
+    wrmsr
+
+    /* 4G for bootstrap and MMIO mapping */
+    map_low_4G
+
+    /* Enabling Paging */
+    mov %cr0,  %eax
+    btsl $(31), %eax
+    mov %eax,  %cr0
+
+    popl  %edi
+
+    /* Using another long jump to be on 64 bit mode */
+    pushl $CODE_64_SELECTOR
+    lea   PHYS(_startup_64)(%ebp), %eax
+    pushl %eax
+    retf
+
+.align 8
+.code64
+/* Trusty info must be stroed in RDI */
+.macro save_trusty_info
+    movq %rdi, %rax
+
+    /* Save g_trusty_startup_info in local */
+    movq %rdi, %rsi
+    leaq PHYS(g_trusty_startup_info)(%rbp), %rdi
+    movq $32, %rcx
+    shrq $3, %rcx
+    rep movsq
+
+    /* Clear previous g_trusty_startup_info */
+    movq $32, %rcx
+    shrq $3, %rcx
+0:
+    movq $0, (%rax)
+    addq $8, %rax
     loop 0b
 
-    /* set up a linear map of the first 64GB from 0xffffff8000000000 */
-    lea  PHYS(linear_map_pdp)(%ebp), %esi
-    movl $32768, %ecx
-    xor  %eax, %eax
+    /* Save g_sec_info in local */
+    movq PHYS(g_trusty_startup_info + 16)(%rbp), %rsi
+    leaq PHYS(g_sec_info_buf)(%rbp), %rdi
+    movq $4096, %rcx
+    shrq $3, %rcx
+    rep movsq
 
-    /* loop across these page tables, incrementing the address by 2MB */
+    /* Clear previous g_sec_info */
+    movq PHYS(g_trusty_startup_info + 16)(%rbp), %rax
+    movq $4096, %rcx
+    shrq $3, %rcx
 0:
-    mov  %eax, %ebx
-    shll $21, %ebx
-    orl  $X86_KERNEL_PD_LP_FLAGS, %ebx    # lower word of the entry
-    movl %ebx, (%esi)
-    mov  %eax, %ebx
-    shrl $11, %ebx      # upper word of the entry
-    movl %ebx, 4(%esi)
-    addl $8,%esi
-    inc  %eax
-    loop 0b
-
-    /* point the high pdp at our linear mapping page tables */
-    lea  PHYS(pdp_high)(%ebp), %esi
-    movl $64, %ecx
-    lea  PHYS(linear_map_pdp)(%ebp), %eax
-    orl  $X86_KERNEL_PD_FLAGS, %eax
-
-0:
-    movl %eax, (%esi)
-    add  $8, %esi
-    addl $4096, %eax
+    movq $0, (%rax)
+    addq $8, %rax
     loop 0b
 .endm
 
-.macro  map_customized_page_table
-    /* -2G adress */
+/* Map 0 (VA) to 0 (PA), with 512Gb size. */
+.macro map_low_512G
+    /* Map the early bootstrap, 1G leaf */
+    leaq pml4(%rip), %rdi
+    leaq pdp(%rip), %rsi
+    orq  $X86_KERNEL_PD_FLAGS, %rsi
+    movq %rsi, (%rdi)
+
+    leaq pdp(%rip), %rdi
+    movq $512, %rcx
+    xorq %rax, %rax
+
+0:
+    movq %rax, %rbx
+    shlq $30, %rbx
+    orq  $X86_KERNEL_PD_LP_FLAGS, %rbx
+    movq %rbx, (%rdi)
+    addq $8, %rdi
+    incq %rax
+    loop 0b
+.endm
+
+/* Map KERNEL_ASPACE_BASE (VA) to 0 (PA), with 512Gb size. */
+.macro map_kernel_aspace
+    /* Point the pml4e at the last 512G (kernel aspace 512GB mapping) */
+    leaq PHYS(pdp_high)(%rbp), %rax
+    leaq PHYS(pml4 + 8*511)(%rbp), %rdx
+    orq  $X86_KERNEL_PD_FLAGS, %rax
+    movq %rax, (%rdx)
+
+    /* Set up a linear map of the first 512GB from 0xffffff8000000000 */
+    leaq PHYS(linear_map_pdp_512)(%rbp), %rsi
+    movq $0x40000, %rcx
+    xorq %rax, %rax
+
+    /* Loop across these page tables, incrementing the address by 2MB */
+0:
+    movq %rax, %rbx
+    shl  $21, %rbx
+    orq  $X86_KERNEL_PD_LP_FLAGS, %rbx    # lower word of the entry
+    movq %rbx, (%rsi)
+
+    addq $8,%rsi
+    inc  %rax
+    loop 0b
+
+    /* Point the high pdp at our linear mapping page tables */
+    leaq PHYS(pdp_high)(%rbp), %rsi
+    movq $512, %rcx
+    leaq PHYS(linear_map_pdp_512)(%rbp), %rax
+    orq  $X86_KERNEL_PD_FLAGS, %rax
+
+0:
+    movq %rax, (%rsi)
+    addq $8, %rsi
+    addq $4096, %rax
+    loop 0b
+.endm
+
+/* Map KERNEL_BASE (VA) to trusty startup info.base (PA), with 16MB size. */
+.macro  map_kernel_base_region
+    /* Max memory -2G adress of VA */
     leaq pdp_high + 8*510(%rip), %rdi
     leaq pde_kernel(%rip), %rsi
     orq  $X86_KERNEL_PD_FLAGS, %rsi
@@ -177,7 +283,6 @@
     addq $4096, %rsi
     loop 0b
 
-    /* we have set offset (0x1000) align to platform requirement */
     movq g_trusty_startup_info + 16(%rip), %rsi
     shrq $20, %rsi
     shlq $20, %rsi
@@ -191,172 +296,82 @@
     loop 0b
 .endm
 
-.section ".text.boot"
-.code32
-.global _start
-_start:
-    jmp real_start
 
-.align 8
-
-.type multiboot_header,STT_OBJECT
-multiboot_header:
-    /* magic */
-    .int MULTIBOOT_HEADER_MAGIC
-    /* flags */
-    .int MULTIBOOT_HEADER_FLAGS
-    /* checksum */
-    .int -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
-
-#if !defined(__ELF__) || 1
-    /* header_addr */
-    .int PHYS(multiboot_header)
-    /* load_addr */
-    .int PHYS(_start)
-    /* load_end_addr */
-    .int PHYS(__data_end)
-    /* bss_end_addr */
-    .int PHYS(__bss_end)
-    /* entry_addr */
-    .int PHYS(real_start)
-#endif
-
-real_start:
-    cmpl $MULTIBOOT_BOOTLOADER_MAGIC, %eax
-    jne  0f
-    movl %ebx, PHYS(_multiboot_info)
-
-0:
-    /*
-     * get the offset between compiled entry address and
-     * actually entry address in ebp register temporary
-     */
+.org 0x400
+_startup_64:
     call 1f
 1:
-    popl %ebp
-    subl $PHYS(1b), %ebp
+    pop %rbp
+    sub $PHYS(1b), %rbp
 
-    /* update and load our new gdt by physical pointer */
-    lea  PHYS(_gdtr_phys)(%ebp), %eax
-    lea  PHYS(_gdt)(%ebp), %edx
-    movl %edx, 2(%eax)
-    lgdt (%eax)
-
-    /* load our data selectors */
-    movw $DATA_SELECTOR, %ax
-    movw %ax, %ds
-    movw %ax, %es
-    movw %ax, %fs
-    movw %ax, %ss
-    movw %ax, %gs
-    movw %ax, %ss
-
-    /* load initial stack pointer */
-    lea PHYS(_kstack + 4096)(%ebp), %esp
-
-    /* We need to jump to our sane 32 bit CS */
-    pushl $CODE_SELECTOR
-    lea   PHYS(.Lfarjump)(%ebp), %eax
-    pushl %eax
-    retf
-
-.Lfarjump:
-
-    /* zero the bss section */
-bss_setup:
-    lea  PHYS(__bss_start)(%ebp), %eax /* starting address of the bss */
-    lea  PHYS(__bss_end)(%ebp), %ecx   /* find the length of the bss in bytes */
-    subl %eax, %ecx
-    shrl $2, %ecx       /* convert to 32 bit words, since the bss is aligned anyway */
+    /* Zero the bss section */
+    lea __bss_start(%rip), %rax
+    lea __bss_end(%rip), %rcx
+    sub %rax, %rcx
+    shr $2, %rcx
 2:
-    movl $0, (%eax)
-    addl $4, %eax
+    movq $0, (%rax)
+    add $4, %rax
     loop 2b
 
-    movl %edi, %eax
+    save_trusty_info
 
-    save_info
+    /* Map 0 ~ 512G */
+    map_low_512G
 
-paging_setup:
-    /* Preparing 64 bit paging, we will use 2MB pages covering 2GB
-    for initial bootstrap, this page table will be 1 to 1  */
+    /* Map for kernel address space */
+    map_kernel_aspace
 
-    /* PAE bit must be enabled  for 64 bit paging*/
-    mov  %cr4, %eax
-    btsl $(5), %eax
-    mov  %eax, %cr4
+    /* Map for kernel symbols */
+    map_kernel_base_region
 
-    /* load the physical pointer to the top level page table */
-    lea  PHYS(pml4)(%ebp), %eax
-    mov  %eax, %cr3
+    /* Save the run addr */
+    leaq _start(%rip), %rax
+    movq %rax, entry_phys(%rip)
 
-    /* Long Mode Enabled at this point*/
-    movl $MSR_EFER, %ecx
-    rdmsr
-    orl  $EFER_LME, %eax
-    wrmsr
+    leaq pml4(%rip), %rax
+    movq %rax, %cr3
+    /* Load our gdtr */
+    lgdt _gdtr
 
-    /* setting PAT MSR */
+    /* Set PAT MSR */
     movl $MSR_PAT, %ecx
 
     movl $CACHE_MODE, %eax
     movl $CACHE_MODE, %edx
     wrmsr
 
-    /* map low 2G and 64G for address space */
-    bootstrap_page_init
-
-    /* Enabling Paging and from this point we are in 32 bit compatibility mode */
-    mov %cr0,  %eax
-    btsl $(31), %eax
-    mov %eax,  %cr0
-
-    /* Using another long jump to be on 64 bit mode */
-    pushl $CODE_64_SELECTOR
-    lea   PHYS(farjump64)(%ebp), %eax
-    pushl %eax
-    retf
-
-.align 8
-.code64
-farjump64:
-
-    map_customized_page_table
-
-    /* update real entry physical address */
-    leaq _start(%rip), %rax
-    movq %rax, entry_phys(%rip)
-
-    /* branch to our high address */
-    mov  $highaddr, %rax
-    jmp  *%rax
+    /* Long jump to our code selector and the high address */
+    push  $CODE_64_SELECTOR
+    push  $highaddr
+    lretq
 
 highaddr:
     xorq %rax, %rax
     mov  %ax,  %gs
 
-    /* set TR now, since lk_main check cpuid when initialing thread */
+    /* Set TR now, since lk_main check cpuid when initialing thread */
     mov  $TSS_SELECTOR, %ax
     ltr  %ax
 
-    /* load the high kernel stack */
+    /* Load the high kernel stack */
     mov  $(_kstack + 4096), %rsp
 
-    /* reload the gdtr */
+    /* Reload the gdtr */
     lgdt _gdtr
 
 #ifdef STACK_PROTECTOR
-    /* setup stack check guard for C call */
+    /* Setup stack check guard for C call */
     leaq __stack_chk_guard(%rip), %rdi
     call get_rand_64
     subq $0, %rax
     jz   0f
 #endif
 
-    /* set up the idt */
+    /* Set up the idt */
     call setup_idt
 
-    /* set up GS base */
+    /* Set up GS base */
     leaq global_states(%rip), %rax
 
     movq %rax, %rdx
@@ -370,7 +385,7 @@ highaddr:
     xorq %rdx, %rdx
     xorq %rcx, %rcx
 
-    /* call the main module */
+    /* Call the main module */
     call lk_main
 
 0:                          /* just sit around waiting for interrupts */
@@ -378,47 +393,14 @@ highaddr:
     pause
     jmp 0b                  /* so jump back to halt to conserve power */
 
-
-.align 8
-.code64
-.org 0x400
-_startup_64:
-    call 1f
-1:
-    pop %rbp
-    subl $PHYS(1b), %ebp
-
-    /* zero the bss section */
-    lea __bss_start(%rip), %eax /* starting address of the bss */
-    lea __bss_end(%rip), %ecx   /* find the length of the bss in bytes */
-    subl %eax, %ecx
-    shrl $2, %ecx       /* convert to 32 bit words, since the bss is aligned anyway */
-2:
-    movl $0, (%eax)
-    addl $4, %eax
-    loop 2b
-
-    mov %edi, %eax
-
-    save_info
-
-    bootstrap_page_init
-
-    map_customized_page_table
-
-    /* save the run addr */
-    leaq _start(%rip), %rax
-    movq %rax, entry_phys(%rip)
-
-    leaq pml4(%rip), %rax
-    movq %rax, %cr3
-    /* load our gdtr */
-    lgdt _gdtr
-
-    /* long jump to our code selector and the high address */
-    push  $CODE_64_SELECTOR
-    push  $highaddr
-    lretq
+/* Space for 4GB temporary page tables */
+.balign 4096
+pml4_tmp:
+    .fill 4096, 1, 0
+pdpt_tmp:
+    .fill 4096, 1, 0
+pd_tmp:
+    .fill 4*4096, 1, 0
 
 .global _start_pa
 .set _start_pa, _start - KERNEL_BASE
