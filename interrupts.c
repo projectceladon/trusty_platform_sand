@@ -110,36 +110,19 @@ enum handler_return platform_irq(x86_iframe_t *frame)
     /* deliver the interrupt */
     enum handler_return ret = INT_NO_RESCHEDULE;
 
+    /* EOI should be issued by ISR */
     if (int_handler_table[vector].handler) {
         ret = int_handler_table[vector].
         handler(int_handler_table[vector].arg);
     } else {
-#if ISSUE_EOI
+        lapic_eoi();
         send_self_ipi(vector);
-#endif
         /*
          * CAUTION: smc to non-secure world, and will not
          * return unless Android call smc to secure world
          */
         ret = sm_handle_irq();
     }
-
-#if ISSUE_EOI
-    /*
-     * Ack the interrupt
-     * Please issue EOI in interrupt handler
-     */
-    lapic_eoi();
-
-#elif WITH_SMP
-    /*
-     * There should be no INT_RESCH sent from LK at runtime.
-     * If INT_RESCH triggered at run time, it should be triggered
-     * by Android side, redirect it back to Androd.
-     * */
-    if (is_lk_boot_complete() && (INT_RESCH == vector))
-        lapic_eoi();
-#endif
 
     return ret;
 }

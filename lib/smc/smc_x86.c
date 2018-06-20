@@ -28,16 +28,7 @@
 
 static long self_ipi_trigger_timer_intr(void)
 {
-    /*
-     * Send self IPI needs Local APIC support.
-     * Since issue EOI also needs Local APIC support, share same
-     * macro on send self IPI and issue EOI.
-     */
-#if ISSUE_EOI
-    send_self_ipi(INT_PIT);
-#else
     __asm__ __volatile__ ("int $0x31");
-#endif
 
     return 0;
 }

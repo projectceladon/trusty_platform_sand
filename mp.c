@@ -31,7 +31,7 @@ static void send_reschedule_ipi(uint32_t cpuid)
      * since only one processor runs on run time due to
      * Google Trusty SMC mechanism.
      */
-    if (is_lk_boot_complete()) {
+    if (!is_lk_boot_complete()) {
         if (UINT32_MAX == cpuid) {
             return lapic_send_ipi_excluding_self(APIC_DM_FIXED, INT_RESCH);
         } else {
@@ -68,7 +68,17 @@ enum handler_return x86_ipi_generic_handler(void *arg)
 
 enum handler_return x86_ipi_reschedule_handler(void *arg)
 {
-    return INT_RESCHEDULE;
+    enum handler_return ret = INT_RESCHEDULE;
+
+    lapic_eoi();
+
+    /* If LK boots complete, this vector should be redirected to REE */
+    if (is_lk_boot_complete()) {
+        send_self_ipi(INT_RESCH);
+        ret = sm_handle_irq();
+    }
+
+    return ret;
 }
 
 void arch_mp_init_percpu(void)

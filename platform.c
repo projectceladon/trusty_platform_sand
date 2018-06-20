@@ -272,9 +272,7 @@ void platform_early_init(void)
     init_uart();
 #endif
 
-#if defined(WITH_SMP) || defined(ISSUE_EOI)
     local_apic_init();
-#endif
 }
 
 static inline void __cpuid(uint64_t cpu_info[4], uint64_t leaf, uint64_t subleaf)
