@@ -115,12 +115,7 @@ enum handler_return platform_irq(x86_iframe_t *frame)
         ret = int_handler_table[vector].
         handler(int_handler_table[vector].arg);
     } else {
-        lapic_eoi();
-        send_self_ipi(vector);
-        /*
-         * CAUTION: smc to non-secure world, and will not
-         * return unless Android call smc to secure world
-         */
+        FW_INT_TO_NS(vector);
         ret = sm_handle_irq();
     }
 

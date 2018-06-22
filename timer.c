@@ -15,9 +15,11 @@
  *******************************************************************************/
 #include <err.h>
 #include <arch/arch_ops.h>
+#include <arch/local_apic.h>
 #include <platform/sand.h>
 #include <platform/interrupts.h>
 #include <platform/timer.h>
+#include <debug.h>
 
 #if WITH_SM_WALL
 #include <lib/sm.h>
@@ -151,15 +153,32 @@ status_t platform_set_periodic_timer(platform_timer_callback callback,
 
 static enum handler_return os_timer_tick(void *arg)
 {
-    if (!t_callback)
-        return 0;
+    enum handler_return ret = INT_NO_RESCHEDULE;
+
+    /*
+     * Soft interrupt is triggered for timer in current solution,
+     * when handling timer interrupt, we need to check whether corresponding bit
+     * of vector is set in Local APIC ISR. Since if bit set in ISR,
+     * it means this interrupt is triggered by external interrupt which belongs
+     * to Non-Secure world, need to redirect this interrupt to NS world.
+     */
+    if (local_apic_vector_in_service(INT_PIT)) {
+        dprintf(CRITICAL, "WARNING: Trusty OS timer vector overlapped!!\n");
+        FW_INT_TO_NS(INT_PIT);
+        ret = sm_handle_irq();
+    } else {
+        if (!t_callback)
+            return INT_NO_RESCHEDULE;
 
 #if !PLATFORM_HAS_DYNAMIC_TIMER
-    timer_current_time += timer_delta_time;
+        timer_current_time += timer_delta_time;
 #endif
-    lk_time_t time = current_time();
+        lk_time_t time = current_time();
 
-    return t_callback(callback_arg, time);
+        ret = t_callback(callback_arg, time);
+    }
+
+    return ret;
 }
 
 void platform_init_timer(void)

@@ -101,3 +101,9 @@ static inline void x86_set_cr8(uint64_t in_val)
                :"r" (in_val));
 }
 #endif
+
+#define FW_INT_TO_NS(v) \
+    do { \
+        lapic_eoi(); \
+        send_self_ipi(v); \
+    } while(0);
