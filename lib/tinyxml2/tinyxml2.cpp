@@ -26,6 +26,12 @@ distribution.
 
 using namespace tinyxml2;
 
+#if __has_cpp_attribute(clang::fallthrough)
+#define FALLTHROUGH [[clang::fallthrough]]
+#else
+#define FALLTHROUGH
+#endif
+
 static const char LINE_FEED                = (char)0x0a;            // all line endings are normalized to LF
 static const char LF = LINE_FEED;
 static const char CARRIAGE_RETURN        = (char)0x0d;            // CR gets filtered out
@@ -283,17 +289,21 @@ void XMLUtil::ConvertUTF32ToUTF8( unsigned long input, char* output, int* length
             --output;
             *output = (char)((input | BYTE_MARK) & BYTE_MASK);
             input >>= 6;
+            FALLTHROUGH;
         case 3:
             --output;
             *output = (char)((input | BYTE_MARK) & BYTE_MASK);
             input >>= 6;
+            FALLTHROUGH;
         case 2:
             --output;
             *output = (char)((input | BYTE_MARK) & BYTE_MASK);
             input >>= 6;
+            FALLTHROUGH;
         case 1:
             --output;
             *output = (char)(input | FIRST_BYTE_MARK[*length]);
+            break;
     }
 }
 
