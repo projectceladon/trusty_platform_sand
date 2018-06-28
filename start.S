@@ -284,8 +284,6 @@ _start:
     loop 0b
 
     movq g_trusty_startup_info + 16(%rip), %rsi
-    shrq $20, %rsi
-    shlq $20, %rsi
     leaq pte_kernel(%rip), %rdi
     movq $4096, %rcx
 0:
