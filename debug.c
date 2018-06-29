@@ -164,9 +164,9 @@ void uart_remap(void)
     ret = vmm_alloc_physical(vmm_get_kernel_aspace(),
             "uart",
             4096,
-            (void **)&io_base,
+            (void **)&mmio_base_addr,
             PAGE_SIZE_SHIFT,
-            mmio_base_addr,
+            io_base,
             0,
             ARCH_MMU_FLAG_UNCACHED_DEVICE);
 
