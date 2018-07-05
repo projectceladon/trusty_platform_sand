@@ -98,12 +98,13 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
         .flags = MMU_INITIAL_MAPPING_TEMPORARY,
         .name = "kernel"
     },
+    /* 16MB for symbols and PA/VA translation in kernel */
     {
-        .phys = MEMBASE + KERNEL_LOAD_OFFSET,
-        .virt = KERNEL_ASPACE_BASE + KERNEL_LOAD_OFFSET,
-        .size = 512*GB,
+        .phys = 0,
+        .virt = KERNEL_ASPACE_BASE,
+        .size = 16*MB,
         .flags = 0,
-        .name = "memory"
+        .name = "krnl_mem"
     },
     {0}
 };
@@ -233,9 +234,8 @@ static void platform_heap_init(void)
     mmu_initial_mappings[0].virt = (vaddr_t)&_start;
     mmu_initial_mappings[0].virt -= (entry_phys - g_trusty_startup_info.trusty_mem_base);
 
-    mmu_initial_mappings[1].phys = g_trusty_startup_info.trusty_mem_base;
-    mmu_initial_mappings[1].virt = g_trusty_startup_info.trusty_mem_base + KERNEL_ASPACE_BASE;
-    mmu_initial_mappings[1].size -= g_trusty_startup_info.trusty_mem_base;
+    mmu_initial_mappings[1].phys += g_trusty_startup_info.trusty_mem_base;
+    mmu_initial_mappings[1].virt += g_trusty_startup_info.trusty_mem_base;
 }
 
 void platform_early_init(void)
