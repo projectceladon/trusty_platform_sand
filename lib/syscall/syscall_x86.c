@@ -33,6 +33,31 @@ typedef struct ta_permission {
 	uint32_t permission;
 } ta_permission_t;
 
+#if ATTKB_HECI
+typedef union hfs1 {
+	struct {
+		uint32_t working_state: 4;   /* Current working state */
+		uint32_t manuf_mode: 1;      /* Manufacturing mode */
+		uint32_t part_tbl_status: 1; /* Indicates status of flash partition table */
+		uint32_t reserved: 25;       /* Reserved for further use */
+		uint32_t d0i3_support: 1;    /* Indicates D0i3 support */
+	} field;
+	uint32_t data;
+} hfs1_t;
+
+/* BXT uses HECI1 */
+#define HECI1_BUS       (0)
+#define HECI1_DEV       (15)
+#define HECI1_FUNC      (0)
+#define HECI1_REG       (0x40)
+
+#define PCI_READ_FUSE(DEVICE_PLATFORM) pci_read32 \
+					(DEVICE_PLATFORM##_BUS, \
+					DEVICE_PLATFORM##_DEV, \
+					DEVICE_PLATFORM##_FUNC, \
+					DEVICE_PLATFORM##_REG)
+#endif
+
 static uint32_t get_ta_permission(void)
 {
 	ta_permission_t ta_permission_matrix[] = {
@@ -134,7 +159,15 @@ long sys_get_device_info(user_addr_t info)
 
 	if (ta_permission & GET_ATTKB) {
 #if ATTKB_HECI
-		dev_info->attkb_size = copy_attkb_to_user(info + sizeof(trusty_device_info_t));
+		hfs1_t state;
+		state.data = PCI_READ_FUSE(HECI1);
+		if(state.field.manuf_mode) {
+			dprintf(INFO, "bypass retrieval of attkb in manufacturing mode for development/validation!\n");
+			dev_info->attkb_size = 0;
+		}
+		else {
+			dev_info->attkb_size = copy_attkb_to_user(info + sizeof(trusty_device_info_t));
+		}
 #else
 		dev_info->attkb_size = 0;
 #endif
