@@ -38,7 +38,9 @@
  * aes_256_gcm_encrypt - Helper function for encrypt.
  * @key:          Key object.
  * @iv:           Initialization vector to use for Cipher Block Chaining.
+ * @iv_size:      Number of bytes iv @iv.
  * @aad:          AAD to use for infomation.
+ * @aad_size:     Number of bytes aad @aad.
  * @plain:        Data to encrypt, it is only plaintext.
  * @plain_size:   Number of bytes in @plain.
  * @out:          Data out, it contains ciphertext and tag.
@@ -47,7 +49,8 @@
  * Return: 0 on success, < 0 if an error was detected.
  */
 int aes_256_gcm_encrypt(const struct gcm_key *key,
-			const struct gcm_iv *iv, const struct gcm_aad *aad,
+			const void *iv, size_t iv_size,
+			const void *aad, size_t aad_size,
 			const void *plain, size_t plain_size,
 			void *out, size_t *out_size)
 {
@@ -57,8 +60,8 @@ int aes_256_gcm_encrypt(const struct gcm_key *key,
 	uint8_t *out_buf;
 	uint8_t *tag;
 
-	if ((key == NULL) || (iv == NULL) || (plain == NULL) ||
-		(out == NULL) || (out_size == NULL)) {
+	if ((key == NULL) || (iv == NULL) || (iv_size == 0) ||
+		(plain == NULL) || (out == NULL) || (out_size == NULL)) {
 		TLOGE("invalid args!\n");
 		return AES_GCM_ERR_GENERIC;
 	}
@@ -84,14 +87,14 @@ int aes_256_gcm_encrypt(const struct gcm_key *key,
 	}
 
 	/* set iv length.*/
-	if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(struct gcm_iv), NULL)) {
+	if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_size, NULL)) {
 		TLOGE("set iv length fail\n");
 		goto exit;
 	}
 
 	/* set to aad info.*/
 	if (NULL != aad) {
-		if (!EVP_EncryptUpdate(ctx, NULL, &out_len, (uint8_t *)aad, sizeof(struct gcm_aad))) {
+		if (!EVP_EncryptUpdate(ctx, NULL, &out_len, (uint8_t *)aad, aad_size)) {
 			TLOGE("set aad info fail\n");
 			goto exit;
 		}
@@ -147,7 +150,9 @@ exit:
  * aes_256_gcm_decrypt - Helper function for decrypt.
  * @key:          Key object.
  * @iv:           Initialization vector to use for Cipher Block Chaining.
+ * @iv_size:      Number of bytes iv @iv.
  * @aad:          AAD to use for infomation.
+ * @aad_size:     Number of bytes aad @aad.
  * @cipher:       Data in to decrypt, it contains ciphertext and tag.
  * @cipher_size:  Number of bytes in @cipher.
  * @out:          Data out, it is only plaintext.
@@ -156,7 +161,8 @@ exit:
  * Return: 0 on success, < 0 if an error was detected.
  */
 int aes_256_gcm_decrypt(const struct gcm_key *key,
-			const struct gcm_iv *iv, const struct gcm_aad *aad,
+			const void *iv, size_t iv_size,
+			const void *aad, size_t aad_size,
 			const void *cipher, size_t cipher_size,
 			void *out, size_t *out_size)
 {
@@ -166,8 +172,8 @@ int aes_256_gcm_decrypt(const struct gcm_key *key,
 	uint8_t *out_buf;
 	uint8_t *tag;
 
-	if ((key == NULL) || (iv == NULL) || (cipher == NULL) ||
-		(out == NULL) || (out_size == NULL)) {
+	if ((key == NULL) || (iv == NULL) || (iv_size == 0) ||
+		(cipher == NULL) || (out == NULL) || (out_size == NULL)) {
 		TLOGE("invalid args!\n");
 		return AES_GCM_ERR_GENERIC;
 	}
@@ -193,14 +199,14 @@ int aes_256_gcm_decrypt(const struct gcm_key *key,
 	}
 
 	/* set iv length.*/
-	if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, sizeof(struct gcm_iv), NULL)) {
+	if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, iv_size, NULL)) {
 		TLOGE("set iv length fail\n");
 		goto exit;
 	}
 
 	/* set to aad info.*/
 	if (NULL != aad) {
-		if (!EVP_EncryptUpdate(ctx, NULL, &out_len, (uint8_t *)aad, sizeof(struct gcm_aad))) {
+		if (!EVP_EncryptUpdate(ctx, NULL, &out_len, (uint8_t *)aad, aad_size)) {
 			TLOGE("set aad info fail\n");
 			goto exit;
 		}

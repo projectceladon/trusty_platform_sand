@@ -24,13 +24,6 @@ struct gcm_key {
 	uint8_t byte[32];
 };
 
-struct gcm_iv {
-	uint8_t byte[12];
-};
-
-struct gcm_aad {
-	uint8_t byte[16];
-};
 
 struct gcm_tag {
 	uint8_t byte[16];
@@ -41,12 +34,14 @@ struct gcm_tag {
 #define AES_GCM_ERR_AUTH_FAILED    -2
 
 int aes_256_gcm_encrypt(const struct gcm_key *key,
-		const struct gcm_iv *iv, const struct gcm_aad *aad,
+		const void *iv, size_t iv_size,
+		const void *aad, size_t aad_size,
 		const void *plain, size_t plain_size,
 		void *out, size_t *out_size);
 
 int aes_256_gcm_decrypt(const struct gcm_key *key,
-		const struct gcm_iv *iv, const struct gcm_aad *aad,
+		const void *iv, size_t iv_size,
+		const void *aad, size_t aad_size,
 		const void *cipher, size_t cipher_size,
 		void *out, size_t *out_size);
 
