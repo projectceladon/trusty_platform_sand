@@ -58,6 +58,18 @@ typedef union hfs1 {
 					DEVICE_PLATFORM##_REG)
 #endif
 
+#ifdef __clang__
+#define OPTNONE __attribute__((optnone))
+#else  // not __clang__
+#define OPTNONE __attribute__((optimize("O0")))
+#endif  // not __clang__
+static inline OPTNONE void* secure_memzero(void* s, size_t n) {
+    if (!s)
+        return s;
+    return memset(s, 0, n);
+}
+#undef OPTNONE
+
 static uint32_t get_ta_permission(void)
 {
 	ta_permission_t ta_permission_matrix[] = {
@@ -105,7 +117,7 @@ uint32_t copy_attkb_to_user(user_addr_t user_attkb)
 	}
 
 	ret = copy_to_user(user_attkb, attkb, attkb_size);
-	memset(attkb, 0, attkb_size);
+	secure_memzero(attkb, attkb_size);
 
 	if (ret != NO_ERROR)
 		panic("failed (%ld) to copy structure to user\n", ret);
@@ -149,12 +161,12 @@ long sys_get_device_info(user_addr_t info)
 
 	/* seed is the sensitive secret date, do not return to user app if it is not required. */
 	if (!(ta_permission & GET_SEED)) {
-		memset(dev_info->sec_info.dseed_list, 0, sizeof(dev_info->sec_info.dseed_list));
-		memset(dev_info->sec_info.useed_list, 0, sizeof(dev_info->sec_info.useed_list));
+		secure_memzero(dev_info->sec_info.dseed_list, sizeof(dev_info->sec_info.dseed_list));
+		secure_memzero(dev_info->sec_info.useed_list, sizeof(dev_info->sec_info.useed_list));
 	}
 
 	if (!(ta_permission & GET_RPMB_KEY)) {
-		memset(dev_info->sec_info.rpmb_key, 0, sizeof(dev_info->sec_info.rpmb_key));
+		secure_memzero(dev_info->sec_info.rpmb_key, sizeof(dev_info->sec_info.rpmb_key));
 	}
 
 	if (ta_permission & GET_ATTKB) {
@@ -172,9 +184,13 @@ long sys_get_device_info(user_addr_t info)
 		dev_info->attkb_size = 0;
 #endif
 	}
+	else {
+		secure_memzero(dev_info->sec_info.attkb_enc_key,
+			sizeof(dev_info->sec_info.attkb_enc_key));
+	}
 
 	ret = copy_to_user(info, dev_info, sizeof(trusty_device_info_t));
-	memset(dev_info, 0, sizeof(trusty_device_info_t));
+	secure_memzero(dev_info, sizeof(trusty_device_info_t));
 
 	if (ret != NO_ERROR)
 		panic("failed (%ld) to copy structure to user\n", ret);

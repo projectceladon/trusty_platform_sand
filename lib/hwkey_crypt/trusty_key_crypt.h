@@ -33,6 +33,8 @@ struct gcm_tag {
 #define AES_GCM_ERR_GENERIC        -1
 #define AES_GCM_ERR_AUTH_FAILED    -2
 
+void* secure_memzero(void * p, size_t len);
+
 int aes_256_gcm_encrypt(const struct gcm_key *key,
 		const void *iv, size_t iv_size,
 		const void *aad, size_t aad_size,

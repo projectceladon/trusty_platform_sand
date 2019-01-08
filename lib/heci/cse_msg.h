@@ -49,8 +49,9 @@ typedef union _MKHI_MESSAGE_HEADER {
 /*
  * for MKHI-MCA client
  */
-#define MCA_MKHI_BOOTLOADER_READ_ATTKB_CMD_REQ  0x19
-#define MCA_MKHI_BOOTLOADER_READ_ATTKB_GRP_ID   0x0A
+#define MCA_MKHI_BOOTLOADER_READ_ATTKB_GRP_ID      0x0A
+#define MCA_MKHI_BOOTLOADER_READ_ATTKB_CMD_REQ     0x19
+#define MCA_MKHI_BOOTLOADER_READ_ATTKB_EX_CMD_REQ  0x1A
 #define MAX_ATTKB_SIZE                         (16*1024)
 
 typedef struct
@@ -68,5 +69,27 @@ typedef struct
     MKHI_MESSAGE_HEADER  Header;
     uint32_t             ReadSize;
 } MCA_BOOTLOADER_READ_ATTKB_RESP_DATA;
+
+typedef struct
+{
+    MKHI_MESSAGE_HEADER    Header;
+    uint16_t               TotalFileSize; // Size of the whole attkb file, including the added encryption header.
+    uint16_t               ReadOffset;
+    uint16_t               ReadSize; // Size in bytes actually read.
+    uint16_t               Reserved;
+    uint8_t                FileData[];
+} MCA_BOOTLOADER_READ_ATTKB_EX_Response;
+
+typedef struct
+{
+    MKHI_MESSAGE_HEADER    Header;
+    uint16_t               Offset; // Offset in file in bytes.
+    uint16_t               Size; // Size in bytes to read
+    struct
+    {
+        uint32_t Encrypt   : 1;
+        uint32_t Reserved  : 31;
+    } Flags;
+} MCA_BOOTLOADER_READ_ATTKB_EX_Request;
 
 #endif    // _CSE_MSG_H

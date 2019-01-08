@@ -55,6 +55,4 @@ long hwkey_exchange_crypto_context(hwkey_session_t session, const uint8_t *src,
 
 long hwkey_get_ssek(hwkey_session_t session, uint8_t *ssek, uint32_t ssek_len);
 
-void secure_memzero(void * p, size_t len);
-
 #endif

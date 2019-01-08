@@ -27,12 +27,23 @@
 #include <openssl/evp.h>
 #include <openssl/mem.h>
 
-#include "trusty_key_migration.h"
 #include "trusty_key_crypt.h"
 
 #define LOG_TAG "libhwkey_crypt"
 #define TLOGE(fmt, ...) \
     fprintf(stderr, "%s: %d: " fmt, LOG_TAG, __LINE__,  ## __VA_ARGS__)
+
+#ifdef __clang__
+#define OPTNONE __attribute__((optnone))
+#else  // not __clang__
+#define OPTNONE __attribute__((optimize("O0")))
+#endif  // not __clang__
+inline OPTNONE void* secure_memzero(void* s, size_t n) {
+    if (!s)
+        return s;
+    return memset(s, 0, n);
+}
+#undef OPTNONE
 
 /**
  * aes_256_gcm_encrypt - Helper function for encrypt.
@@ -206,7 +217,7 @@ int aes_256_gcm_decrypt(const struct gcm_key *key,
 
 	/* set to aad info.*/
 	if (NULL != aad) {
-		if (!EVP_EncryptUpdate(ctx, NULL, &out_len, (uint8_t *)aad, aad_size)) {
+		if (!EVP_DecryptUpdate(ctx, NULL, &out_len, (uint8_t *)aad, aad_size)) {
 			TLOGE("set aad info fail\n");
 			goto exit;
 		}

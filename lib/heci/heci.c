@@ -32,6 +32,7 @@
 
 #include "cse_msg.h"
 #include "heci_impl.h"
+#include "trusty_device_info.h"
 
 #ifdef EPT_DEBUG
 #include <platform/vmcall.h>
@@ -395,28 +396,29 @@ static int HeciSendwACK(
     return status;
 }
 
+#define HECI_MSG_SIZE       ((1 << 9) - 1)
+#define MAX_TRANSFER_BUFFER (HECI_MSG_SIZE - sizeof(MCA_BOOTLOADER_READ_ATTKB_EX_Response))
+#define ALIGNED_MAX_TRANSFER_BUFFER (MAX_TRANSFER_BUFFER - MAX_TRANSFER_BUFFER % 4)
+
 /* if get failure, return zero */
-uint32_t get_attkb(uint8_t *attkb)
+static uint32_t get_attkb_size(void)
 {
     int status = 0;
     uint32_t HeciSendLength;
     uint32_t HeciRecvLength;
-    MCA_BOOTLOADER_READ_ATTKB_RESP_DATA *Resp;
-    MCA_BOOTLOADER_READ_ATTKB_REQ_DATA *Req;
-    uint8_t DataBuffer[sizeof(MCA_BOOTLOADER_READ_ATTKB_REQ_DATA)];
-    paddr_t pa;
 
-    pa = (uint64_t)vaddr_to_paddr(attkb);
+    MCA_BOOTLOADER_READ_ATTKB_EX_Response *Resp;
+    MCA_BOOTLOADER_READ_ATTKB_EX_Request *Req;
+    uint8_t DataBuffer[sizeof(MCA_BOOTLOADER_READ_ATTKB_EX_Request) + ALIGNED_MAX_TRANSFER_BUFFER] = {0};
 
-    memset(DataBuffer, 0, sizeof(DataBuffer));
-    Req = (MCA_BOOTLOADER_READ_ATTKB_REQ_DATA*)DataBuffer;
-    Req->MKHIHeader.Fields.GroupId = MCA_MKHI_BOOTLOADER_READ_ATTKB_GRP_ID;
-    Req->MKHIHeader.Fields.Command = MCA_MKHI_BOOTLOADER_READ_ATTKB_CMD_REQ;
-    Req->DstAddrLower = (uint32_t)pa;
-    Req->DstAddrUpper = (uint32_t)(pa >> 32);
-    Req->Size = MAX_ATTKB_SIZE;
+    Req = (MCA_BOOTLOADER_READ_ATTKB_EX_Request*)DataBuffer;
+    Req->Header.Fields.GroupId = MCA_MKHI_BOOTLOADER_READ_ATTKB_GRP_ID;
+    Req->Header.Fields.Command = MCA_MKHI_BOOTLOADER_READ_ATTKB_EX_CMD_REQ;
+    Req->Size = 0; /* Zero size indicates request for attkb size */
+    Req->Offset = 0;
+    Req->Flags.Encrypt = 1;
 
-    HeciSendLength = sizeof(MCA_BOOTLOADER_READ_ATTKB_REQ_DATA);
+    HeciSendLength = sizeof(MCA_BOOTLOADER_READ_ATTKB_EX_Request);
     HeciRecvLength = sizeof(DataBuffer);
 
     status = HeciSendwACK(
@@ -425,8 +427,8 @@ uint32_t get_attkb(uint8_t *attkb)
                  &HeciRecvLength,
                  BIOS_FIXED_HOST_ADDR,
                  BIOS_SEC_ADDR);
-    Resp = (MCA_BOOTLOADER_READ_ATTKB_RESP_DATA*)DataBuffer;
-    if((status < 0) || (Resp->Header.Fields.Result != 0)) {
+    Resp = (MCA_BOOTLOADER_READ_ATTKB_EX_Response*)DataBuffer;
+    if ((status < 0) || (Resp->Header.Fields.Result != 0)) {
         dprintf(INFO, "failed to get attkb: status %d, respone %d\n", status, Resp->Header.Fields.Result);
         return 0;
     }
@@ -435,8 +437,81 @@ uint32_t get_attkb(uint8_t *attkb)
     DEBUG ("IsRespone= %08x\n", Resp->Header.Fields.IsResponse);
     DEBUG ("Result   = %08x\n", Resp->Header.Fields.Result);
     DEBUG ("ReadSize = %08x\n", Resp->ReadSize);
+    DEBUG ("ReadOffset = %08x\n", Resp->ReadOffset);
+    DEBUG ("TotalFileSize = %08x\n", Resp->TotalFileSize);
 
-    return Resp->ReadSize;
+    return Resp->TotalFileSize;
+}
+
+/* if get failure, return zero */
+uint32_t get_attkb(uint8_t *attkb)
+{
+    uint32_t attkb_size = 0;
+    uint32_t remaining_attkb_size = 0;
+    int status = 0;
+    uint32_t HeciSendLength;
+    uint32_t HeciRecvLength;
+    MCA_BOOTLOADER_READ_ATTKB_EX_Response *Resp;
+    MCA_BOOTLOADER_READ_ATTKB_EX_Request *Req;
+    uint8_t DataBuffer[sizeof(MCA_BOOTLOADER_READ_ATTKB_EX_Response) + ALIGNED_MAX_TRANSFER_BUFFER];
+    uint32_t offset = 0;
+    uint32_t req_size = 0;
+
+    if (NULL == attkb)
+        return 0;
+
+    attkb_size = get_attkb_size();
+    if (attkb_size == 0) {
+        dprintf(INFO, "failed to get_attkb_size.\n");
+        return 0;
+    }
+
+    remaining_attkb_size = attkb_size;
+    while (remaining_attkb_size) {
+        memset(DataBuffer, 0, sizeof(DataBuffer));
+        Req = (MCA_BOOTLOADER_READ_ATTKB_EX_Request*)DataBuffer;
+        Req->Header.Fields.GroupId = MCA_MKHI_BOOTLOADER_READ_ATTKB_GRP_ID;
+        Req->Header.Fields.Command = MCA_MKHI_BOOTLOADER_READ_ATTKB_EX_CMD_REQ;
+        Req->Size = MIN(remaining_attkb_size, ALIGNED_MAX_TRANSFER_BUFFER);
+        Req->Offset = offset;
+        Req->Flags.Encrypt = 1;
+        req_size = Req->Size;
+
+        HeciSendLength = sizeof(MCA_BOOTLOADER_READ_ATTKB_EX_Request);
+        HeciRecvLength = sizeof(DataBuffer);
+
+        status = HeciSendwACK(
+                     (uint32_t *)DataBuffer,
+                     HeciSendLength,
+                     &HeciRecvLength,
+                     BIOS_FIXED_HOST_ADDR,
+                     BIOS_SEC_ADDR);
+        Resp = (MCA_BOOTLOADER_READ_ATTKB_EX_Response*)DataBuffer;
+        if ((status < 0) || (Resp->Header.Fields.Result != 0)) {
+            dprintf(INFO, "failed to get attkb: status %d, respone %d.\n", status, Resp->Header.Fields.Result);
+            return 0;
+        }
+
+        if (Resp->ReadSize > remaining_attkb_size || Resp->ReadSize > req_size) {
+            dprintf(INFO, "unexpected size: remaining_attkb_size %d, Resp->ReadSize %d, Req->Size %d.",
+                    remaining_attkb_size, Resp->ReadSize, req_size);
+            return 0;
+        }
+
+        memcpy_s(attkb + offset, Resp->ReadSize,
+                 (uint8_t*)DataBuffer + sizeof(MCA_BOOTLOADER_READ_ATTKB_EX_Response), Resp->ReadSize);
+        offset += Resp->ReadSize;
+        remaining_attkb_size -= Resp->ReadSize;
+
+        DEBUG ("Group    = %08x\n", Resp->Header.Fields.GroupId);
+        DEBUG ("Command  = %08x\n", Resp->Header.Fields.Command);
+        DEBUG ("IsRespone= %08x\n", Resp->Header.Fields.IsResponse);
+        DEBUG ("Result   = %08x\n", Resp->Header.Fields.Result);
+        DEBUG ("ReadSize = %08x\n", Resp->ReadSize);
+        DEBUG ("ReadOffset = %08x\n", Resp->ReadOffset);
+        DEBUG ("TotalFileSize = %08x\n", Resp->TotalFileSize);
+    }
+    return attkb_size;
 }
 
 void cse_init(void)
@@ -471,4 +546,3 @@ void cse_init(void)
 
     return;
 }
-

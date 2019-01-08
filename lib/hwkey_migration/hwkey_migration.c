@@ -24,13 +24,6 @@
 #define TLOGE(fmt, ...) \
     fprintf(stderr, "%s: %d: " fmt, LOG_TAG, __LINE__,  ## __VA_ARGS__)
 
-static void * (* const volatile memset_ptr)(void *, int, size_t) = memset;
-
-void secure_memzero(void * p, size_t len)
-{
-    (memset_ptr)(p, 0, len);
-}
-
 /**
  * long hwkey_err_to_tipc_err() - translates hwkey err value to tipc/lk err value
  * @hwkey_err: hwkey err value
