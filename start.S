@@ -360,7 +360,7 @@ highaddr:
 
 #ifdef STACK_PROTECTOR
     /* Setup stack check guard for C call */
-    leaq __stack_chk_guard(%rip), %rdi
+    leaq global_states + 0x28(%rip), %rdi
     call get_rand_64
     subq $0, %rax
     jz   0f
