@@ -109,11 +109,9 @@ static void uart_putc(char c)
 #endif
 
     while (put_idx != get_idx) {
-        while (1) {
+        do {
             lsr.data = io_get_reg(io_base, UART_REGISTER_LSR);
-            if (lsr.bits.thre == 1)
-                break;
-        }
+        } while(!lsr.bits.thre);
         io_set_reg(io_base, UART_REGISTER_THR, uart_early_buf[get_idx]);
         get_idx++;
         get_idx %= BUF_SIZE;
